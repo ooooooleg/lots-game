@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lots — Настольная игра</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1a1a1a;
+            color: #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            background-color: #2a2a2a;
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            width: 90%;
+            max-width: 420px;
+            text-align: center;
+        }
+
+        h1, h2 { margin-top: 0; color: #ffca28; }
+
+        input {
+            width: 85%;
+            padding: 10px;
+            margin: 8px 0;
+            border-radius: 6px;
+            border: 1px solid #444;
+            background: #333;
+            color: #fff;
+            font-size: 16px;
+            text-align: center;
+        }
+
+        button {
+            width: 90%;
+            padding: 12px;
+            margin: 8px 0;
+            border: none;
+            border-radius: 6px;
+            background-color: #ffca28;
+            color: #1a1a1a;
+            font-weight: bold;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        button:hover { background-color: #ffb300; }
+        .hidden { display: none; }
+        
+        .player-list { list-style: none; padding: 0; margin: 15px 0; }
+        .player-list li {
+            background: #333;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 6px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .lot-box {
+            background: #ffca28;
+            color: #1a1a1a;
+            font-size: 24px;
+            font-weight: bold;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+
+        .status-badge { font-size: 12px; padding: 3px 8px; border-radius: 4px; }
+        .ready { background: #4caf50; color: white; }
+        .waiting { background: #ff9800; color: white; }
+        .error { color: #f44336; margin-top: 10px; }
+    </style>
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+
+    <div class="container">
+        <h1>LOTS</h1>
+
+        <!-- ЭКРАН 1: Меню входа -->
+        <div id="auth-screen">
+            <input type="text" id="player-name" placeholder="Введи свое имя" maxlength="15">
+            <hr style="border-color: #444; margin: 15px 0;">
+            <button id="btn-create">Создать новую игру</button>
+            <p>или</p>
+            <input type="text" id="room-code-input" placeholder="Код комнаты (4 символа)" maxlength="4" style="text-transform: uppercase;">
+            <button id="btn-join">Войти в комнату</button>
+            <p id="error-msg" class="error"></p>
+        </div>
+
+        <!-- ЭКРАН 2: Лобби комнаты -->
+        <div id="lobby-screen" class="hidden">
+            <h2>Код: <span id="display-code" style="color: #4caf50;">----</span></h2>
+            <p>Игроки в комнате:</p>
+            <ul id="players-list" class="player-list"></ul>
+            <button id="btn-start" class="hidden">Начать игру</button>
+            <p id="lobby-error" class="error"></p>
+        </div>
+
+        <!-- ЭКРАН 3: Игровое поле -->
+        <div id="game-screen" class="hidden">
+            <div>Раунд <span id="current-round">1</span> из 5</div>
+            
+            <div class="lot-box">
+                Разыгрывается: <br>
+                <span id="current-lot" style="font-size: 36px;">0</span> очков
+            </div>
+
+            <div style="margin: 10px 0; font-size: 18px;">
+                Твои монеты: <b id="my-coins" style="color: #ffca28;">100</b> 🪙 | 
+                Очки: <b id="my-points" style="color: #4caf50;">0</b> ⭐
+            </div>
+
+            <!-- Форма ставки -->
+            <div id="bid-section">
+                <input type="number" id="bid-input" placeholder="Твоя ставка (монеты)" min="0">
+                <button id="btn-submit-bid">Сделать ставку</button>
+            </div>
+            
+            <div id="bid-status-msg" class="hidden" style="color: #4caf50; font-weight: bold; margin: 15px 0;">
+                Ставка принята! Ожидаем остальных...
+            </div>
+
+            <p id="game-error" class="error"></p>
+
+            <h3>Соперники:</h3>
+            <ul id="game-players-list" class="player-list"></ul>
+
+            <!-- Итоги раунда -->
+            <div id="round-result" class="hidden" style="background: #333; padding: 10px; border-radius: 8px; margin-top: 10px;">
+                <h3 style="color: #ffca28; margin: 0 0 5px 0;">Итоги раунда</h3>
+                <p id="result-text" style="margin: 5px 0;"></p>
+            </div>
+        </div>
+
+        <!-- ЭКРАН 4: Финал -->
+        <div id="final-screen" class="hidden">
+            <h2>🏆 ИГРА ЗАВЕРШЕНА 🏆</h2>
+            <h3 id="winner-announcement" style="color: #ffca28;"></h3>
+            <h3>Итоговая таблица:</h3>
+            <ul id="final-players-list" class="player-list"></ul>
+            <button onclick="location.reload()">Сыграть еще раз</button>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+
+        const authScreen = document.getElementById('auth-screen');
+        const lobbyScreen = document.getElementById('lobby-screen');
+        const gameScreen = document.getElementById('game-screen');
+        const finalScreen = document.getElementById('final-screen');
+
+        const playerNameInput = document.getElementById('player-name');
+        const roomCodeInput = document.getElementById('room-code-input');
+        const errorMsg = document.getElementById('error-msg');
+        const displayCode = document.getElementById('display-code');
+        const playersList = document.getElementById('players-list');
+        const btnStart = document.getElementById('btn-start');
+
+        let myCoins = 100;
+
+        document.getElementById('btn-create').addEventListener('click', () => {
+            const name = playerNameInput.value.trim();
+            if (!name) return errorMsg.innerText = 'Введи имя!';
+            socket.emit('createRoom', { playerName: name });
+        });
+
+        document.getElementById('btn-join').addEventListener('click', () => {
+            const name = playerNameInput.value.trim();
+            const code = roomCodeInput.value.trim();
+            if (!name || !code) return errorMsg.innerText = 'Введи имя и код!';
+            socket.emit('joinRoom', { roomCode: code, playerName: name });
+        });
+
+        document.getElementById('btn-start').addEventListener('click', () => {
+            socket.emit('startGame');
+        });
+
+        document.getElementById('btn-submit-bid').addEventListener('click', () => {
+            const bidVal = parseInt(document.getElementById('bid-input').value, 10);
+            if (isNaN(bidVal) || bidVal < 0) {
+                return document.getElementById('game-error').innerText = 'Введи корректное число!';
+            }
+            if (bidVal > myCoins) {
+                return document.getElementById('game-error').innerText = 'У тебя нет столько монет!';
+            }
+            document.getElementById('game-error').innerText = '';
+            socket.emit('submitBid', { bid: bidVal });
+            document.getElementById('bid-section').classList.add('hidden');
+            document.getElementById('bid-status-msg').classList.remove('hidden');
+        });
+
+        socket.on('roomCreated', ({ roomCode, room }) => {
+            enterLobby(roomCode, room);
+            btnStart.classList.remove('hidden');
+        });
+
+        socket.on('joinedSuccess', ({ roomCode, room }) => enterLobby(roomCode, room));
+        socket.on('updatePlayers', (players) => renderLobbyPlayers(players));
+        socket.on('errorMsg', (msg) => {
+            errorMsg.innerText = msg;
+            document.getElementById('lobby-error').innerText = msg;
+        });
+
+        // Начало раунда
+        socket.on('newRoundStarted', (data) => {
+            authScreen.classList.add('hidden');
+            lobbyScreen.classList.add('hidden');
+            gameScreen.classList.remove('hidden');
+            document.getElementById('round-result').classList.add('hidden');
+
+            document.getElementById('current-round').innerText = data.round;
+            document.getElementById('current-lot').innerText = data.lot;
+
+            const me = data.players.find(p => p.id === socket.id);
+            if (me) {
+                myCoins = me.coins;
+                document.getElementById('my-coins').innerText = me.coins;
+                document.getElementById('my-points').innerText = me.points;
+                document.getElementById('bid-input').max = me.coins;
+                document.getElementById('bid-input').value = '';
+            }
+
+            document.getElementById('bid-section').classList.remove('hidden');
+            document.getElementById('bid-status-msg').classList.add('hidden');
+            renderGamePlayers(data.players);
+        });
+
+        // Изменение статуса ставок (кто-то поставил)
+        socket.on('bidReceived', ({ playersStatus }) => {
+            playersStatus.forEach(ps => {
+                const badge = document.getElementById(`status-${ps.id}`);
+                if (badge && ps.hasBid) {
+                    badge.innerText = 'Сделал ставку';
+                    badge.className = 'status-badge ready';
+                }
+            });
+        });
+
+        // Результат раунда
+        socket.on('roundResult', (data) => {
+            document.getElementById('round-result').classList.remove('hidden');
+            const winnersStr = data.winnersNames.join(', ');
+            
+            if (data.isTie) {
+                document.getElementById('result-text').innerHTML = 
+                    `Ничья! Победители: <b>${winnersStr}</b>.<br>Ставка: <b>${data.maxBid}</b> 🪙. Каждый получил по <b>${data.pointsGained}</b> ⭐!`;
+            } else {
+                document.getElementById('result-text').innerHTML = 
+                    `Победитель раунда: <b>${winnersStr}</b>!<br>Ставка: <b>${data.maxBid}</b> 🪙. Получено: <b>${data.pointsGained}</b> ⭐!`;
+            }
+
+            // Обновляем данные игроков на экране
+            const me = data.players.find(p => p.id === socket.id);
+            if (me) {
+                myCoins = me.coins;
+                document.getElementById('my-coins').innerText = me.coins;
+                document.getElementById('my-points').innerText = me.points;
+            }
+            renderGamePlayers(data.players, true);
+        });
+
+        // Конец игры
+        socket.on('gameOver', (data) => {
+            gameScreen.classList.add('hidden');
+            finalScreen.classList.remove('hidden');
+
+            const winnersNames = data.winners.map(w => w.name).join(', ');
+            document.getElementById('winner-announcement').innerText = `Победитель: ${winnersNames}!`;
+
+            const list = document.getElementById('final-players-list');
+            list.innerHTML = '';
+            // Сортируем игроков по очкам
+            data.players.sort((a, b) => b.points - a.points).forEach(p => {
+                const li = document.createElement('li');
+                li.innerHTML = `<span>${p.name}</span> <span><b>${p.points}</b> ⭐ (осталось ${p.coins} 🪙)</span>`;
+                list.appendChild(li);
+            });
+        });
+
+        function enterLobby(code, room) {
+            authScreen.classList.add('hidden');
+            lobbyScreen.classList.remove('hidden');
+            displayCode.innerText = code;
+            renderLobbyPlayers(room.players);
+        }
+
+        function renderLobbyPlayers(players) {
+            playersList.innerHTML = '';
+            players.forEach(p => {
+                const li = document.createElement('li');
+                li.innerText = p.name + (p.id === socket.id ? ' (Ты)' : '');
+                playersList.appendChild(li);
+            });
+        }
+
+        function renderGamePlayers(players, showLastBid = false) {
+            const list = document.getElementById('game-players-list');
+            list.innerHTML = '';
+            players.forEach(p => {
+                if (p.id === socket.id) return; // Не показываем самого себя в списке противников
+
+                const li = document.createElement('li');
+                let statusText = p.hasBid ? '<span class="status-badge ready">Сделал ставку</span>' : '<span class="status-badge waiting">Думает...</span>';
+                
+                if (showLastBid && p.lastBid !== undefined) {
+                    statusText = `<span style="color:#ffca28;">Ставил: ${p.lastBid} 🪙</span>`;
+                }
+
+                li.innerHTML = `<span>${p.name} (${p.points} ⭐)</span> ${statusText}`;
+                playersList.appendChild(li);
+                list.appendChild(li);
+            });
+        }
+    </script>
+</body>
+</html>
