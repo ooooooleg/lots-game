@@ -20,9 +20,8 @@ function generateRoomCode() {
     return code;
 }
 
-// Генерация случайного лота (от 10 до 50 очков, кратно 5 для красоты)
 function getRandomLot() {
-    return (Math.floor(Math.random() * 9) + 2) * 5; // [10, 15, 20, 25, 30, 35, 40, 45, 50]
+    return (Math.floor(Math.random() * 9) + 2) * 5;
 }
 
 io.on('connection', (socket) => {
@@ -42,6 +41,8 @@ io.on('connection', (socket) => {
             currentRound: 0,
             maxRounds: 5,
             currentLot: 0,
+            timer: null,
+            timeLeft: 20,
             players: [
                 {
                     id: socket.id,
@@ -58,25 +59,14 @@ io.on('connection', (socket) => {
         socket.emit('roomCreated', { roomCode, room: rooms[roomCode] });
     });
 
-    // 2. Присоединение к комнате
+    // 2. Вход в новую комнату
     socket.on('joinRoom', ({ roomCode, playerName }) => {
         const code = roomCode.toUpperCase().trim();
         const room = rooms[code];
 
-        if (!room) {
-            socket.emit('errorMsg', 'Комната с таким кодом не найдена!');
-            return;
-        }
-
-        if (room.players.length >= 6) {
-            socket.emit('errorMsg', 'В комнате уже 6 игроков!');
-            return;
-        }
-
-        if (room.gameState !== 'lobby') {
-            socket.emit('errorMsg', 'Игра уже началась!');
-            return;
-        }
+        if (!room) return socket.emit('errorMsg', 'Комната с таким кодом не найдена!');
+        if (room.players.length >= 6) return socket.emit('errorMsg', 'В комнате уже 6 игроков!');
+        if (room.gameState !== 'lobby') return socket.emit('errorMsg', 'Игра уже началась!');
 
         const newPlayer = {
             id: socket.id,
@@ -94,7 +84,55 @@ io.on('connection', (socket) => {
         io.to(code).emit('updatePlayers', room.players);
     });
 
-    // 3. Старт игры (нажимает Хост)
+    // 3. Переподключение после перезагрузки страницы (Rejoin)
+    socket.on('rejoinRoom', ({ roomCode, playerName }) => {
+        const code = roomCode ? roomCode.toUpperCase().trim() : '';
+        const room = rooms[code];
+
+        if (!room) {
+            return socket.emit('rejoinFailed');
+        }
+
+        // Ищем существующего игрока по имени
+        let player = room.players.find(p => p.name === playerName);
+
+        if (player) {
+            // Обновляем ID сокета у переподключившегося игрока
+            if (room.hostId === player.id) room.hostId = socket.id;
+            player.id = socket.id;
+        } else {
+            // Если игра еще в лобби, можем добавить его заново
+            if (room.gameState === 'lobby' && room.players.length < 6) {
+                player = {
+                    id: socket.id,
+                    name: playerName,
+                    coins: 100,
+                    points: 0,
+                    currentBid: null,
+                    hasBid: false
+                };
+                room.players.push(player);
+            } else {
+                return socket.emit('rejoinFailed');
+            }
+        }
+
+        socket.join(code);
+
+        // Отправляем игроку текущее состояние комнаты
+        socket.emit('rejoinedSuccess', {
+            roomCode: code,
+            room: room,
+            gameState: room.gameState,
+            currentLot: room.currentLot,
+            currentRound: room.currentRound,
+            timeLeft: room.timeLeft
+        });
+
+        io.to(code).emit('updatePlayers', room.players);
+    });
+
+    // 4. Старт игры
     socket.on('startGame', () => {
         let roomCode = null;
         for (const code in rooms) {
@@ -108,8 +146,7 @@ io.on('connection', (socket) => {
         const room = rooms[roomCode];
 
         if (room.players.length < 2) {
-            socket.emit('errorMsg', 'Для игры нужно минимум 2 игрока!');
-            return;
+            return socket.emit('errorMsg', 'Для игры нужно минимум 2 игрока!');
         }
 
         room.gameState = 'playing';
@@ -117,7 +154,7 @@ io.on('connection', (socket) => {
         startNewRound(roomCode);
     });
 
-    // 4. Прием ставки от игрока
+    // 5. Прием ставки
     socket.on('submitBid', ({ bid }) => {
         let roomCode = null;
         let player = null;
@@ -134,55 +171,59 @@ io.on('connection', (socket) => {
         if (!roomCode || !player) return;
         const room = rooms[roomCode];
 
+        if (player.hasBid) return; // Нельзя ставить дважды за раунд
+
         const bidAmount = parseInt(bid, 10);
         if (isNaN(bidAmount) || bidAmount < 0 || bidAmount > player.coins) {
-            socket.emit('errorMsg', 'Некорректная ставка!');
-            return;
+            return socket.emit('errorMsg', 'Некорректная ставка!');
         }
 
         player.currentBid = bidAmount;
         player.hasBid = true;
 
-        // Сообщаем всем в комнате, кто уже сделал ставку (без раскрытия суммы!)
         io.to(roomCode).emit('bidReceived', {
             playersStatus: room.players.map(p => ({ id: p.id, hasBid: p.hasBid }))
         });
 
-        // Проверяем, сделано ли все ставки
         const allBidded = room.players.every(p => p.hasBid);
         if (allBidded) {
+            clearInterval(room.timer); // Останавливаем таймер
             evaluateRound(roomCode);
         }
     });
 
-    // 5. Отключение
+    // 6. Отключение игрока
     socket.on('disconnect', () => {
+        // Мы НЕ удаляем игрока мгновенно из списка во время игры,
+        // чтобы дать ему возможность переподключиться при перезагрузке
         for (const code in rooms) {
             const room = rooms[code];
-            const index = room.players.findIndex(p => p.id === socket.id);
+            const pIndex = room.players.findIndex(p => p.id === socket.id);
 
-            if (index !== -1) {
-                room.players.splice(index, 1);
-                if (room.players.length === 0) {
-                    delete rooms[code];
-                } else {
-                    if (room.hostId === socket.id) {
-                        room.hostId = room.players[0].id;
+            if (pIndex !== -1) {
+                // Если с момента отключения прошло 60 сек и он не вернулся — тогда очищаем
+                setTimeout(() => {
+                    const isStillDisconnected = !room.players.some(p => p.id === socket.id);
+                    if (isStillDisconnected && room.gameState === 'lobby') {
+                        room.players.splice(pIndex, 1);
+                        if (room.players.length === 0) delete rooms[code];
+                        else io.to(code).emit('updatePlayers', room.players);
                     }
-                    io.to(code).emit('updatePlayers', room.players);
-                }
+                }, 60000);
                 break;
             }
         }
     });
 });
 
-// Запуск нового раунда
+// Новый раунд + запуск 20-секундного таймера
 function startNewRound(roomCode) {
     const room = rooms[roomCode];
-    room.currentLot = getRandomLot();
+    if (!room) return;
 
-    // Сбрасываем ставки
+    room.currentLot = getRandomLot();
+    room.timeLeft = 20; // 20 секунд на раунд
+
     room.players.forEach(p => {
         p.currentBid = null;
         p.hasBid = false;
@@ -192,6 +233,7 @@ function startNewRound(roomCode) {
         round: room.currentRound,
         maxRounds: room.maxRounds,
         lot: room.currentLot,
+        timeLeft: room.timeLeft,
         players: room.players.map(p => ({
             id: p.id,
             name: p.name,
@@ -200,33 +242,51 @@ function startNewRound(roomCode) {
             hasBid: false
         }))
     });
+
+    if (room.timer) clearInterval(room.timer);
+
+    // Запуск интервала обратного отсчета (каждую секунду)
+    room.timer = setInterval(() => {
+        room.timeLeft--;
+        io.to(roomCode).emit('timerUpdate', room.timeLeft);
+
+        // Время вышло!
+        if (room.timeLeft <= 0) {
+            clearInterval(room.timer);
+
+            // Игрокам без ставки автоматически ставится 0 монет
+            room.players.forEach(p => {
+                if (!p.hasBid) {
+                    p.currentBid = 0;
+                    p.hasBid = true;
+                }
+            });
+
+            evaluateRound(roomCode);
+        }
+    }, 1000);
 }
 
-// Подведение итогов раунда
+// Расчет итогов раунда
 function evaluateRound(roomCode) {
     const room = rooms[roomCode];
+    if (!room) return;
 
-    // Находим максимальную ставку
     let maxBid = -1;
     room.players.forEach(p => {
-        if (p.currentBid > maxBid) {
-            maxBid = p.currentBid;
-        }
+        if (p.currentBid > maxBid) maxBid = p.currentBid;
     });
 
-    // Находим всех, кто поставил максимальную ставку (учитываем ничью)
     const winners = room.players.filter(p => p.currentBid === maxBid);
     const pointsPerWinner = Math.floor(room.currentLot / winners.length);
 
-    // Списываем монеты и начисляем очки
     room.players.forEach(p => {
-        p.coins -= p.currentBid; // Вычитаем ставку
+        p.coins -= p.currentBid;
         if (p.currentBid === maxBid) {
             p.points += pointsPerWinner;
         }
     });
 
-    // Формируем сводку раунда
     const resultData = {
         maxBid: maxBid,
         winnersNames: winners.map(w => w.name),
@@ -243,14 +303,12 @@ function evaluateRound(roomCode) {
 
     io.to(roomCode).emit('roundResult', resultData);
 
-    // Через 5 секунд переходим к следующему раунду или финалу
     setTimeout(() => {
         if (room.currentRound < room.maxRounds) {
             room.currentRound++;
             startNewRound(roomCode);
         } else {
             room.gameState = 'finished';
-            // Определение победителя игры
             let maxPoints = -1;
             room.players.forEach(p => {
                 if (p.points > maxPoints) maxPoints = p.points;
