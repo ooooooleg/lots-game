@@ -25,101 +25,97 @@ function getRandomLot() {
 }
 
 io.on('connection', (socket) => {
-    console.log('Игрок подключился:', socket.id);
 
     // 1. Создание комнаты
-    socket.on('createRoom', ({ playerName }) => {
+    socket.on('createRoom', ({ playerName, playerId }) => {
+        if (!playerId) return;
+
         let roomCode = generateRoomCode();
         while (rooms[roomCode]) {
             roomCode = generateRoomCode();
         }
 
-        rooms[roomCode] = {
-            roomId: roomCode,
-            hostId: socket.id,
-            gameState: 'lobby',
-            currentRound: 0,
-            maxRounds: 5,
-            currentLot: 0,
-            timer: null,
-            timeLeft: 20,
-            players: [
-                {
-                    id: socket.id,
-                    name: playerName || 'Игрок 1',
-                    coins: 100,
-                    points: 0,
-                    currentBid: null,
-                    hasBid: false
-                }
-            ]
-        };
-
-        socket.join(roomCode);
-        socket.emit('roomCreated', { roomCode, room: rooms[roomCode] });
-    });
-
-    // 2. Вход в новую комнату
-    socket.on('joinRoom', ({ roomCode, playerName }) => {
-        const code = roomCode.toUpperCase().trim();
-        const room = rooms[code];
-
-        if (!room) return socket.emit('errorMsg', 'Комната с таким кодом не найдена!');
-        if (room.players.length >= 6) return socket.emit('errorMsg', 'В комнате уже 6 игроков!');
-        if (room.gameState !== 'lobby') return socket.emit('errorMsg', 'Игра уже началась!');
-
         const newPlayer = {
             id: socket.id,
-            name: playerName || `Игрок ${room.players.length + 1}`,
+            playerId: playerId,
+            name: playerName || 'Игрок 1',
             coins: 100,
             points: 0,
             currentBid: null,
             hasBid: false
         };
 
-        room.players.push(newPlayer);
-        socket.join(code);
+        rooms[roomCode] = {
+            roomId: roomCode,
+            hostId: socket.id,
+            hostPlayerId: playerId,
+            gameState: 'lobby',
+            currentRound: 0,
+            maxRounds: 5,
+            currentLot: 0,
+            timer: null,
+            timeLeft: 20,
+            players: [newPlayer]
+        };
 
+        socket.join(roomCode);
+        socket.emit('roomCreated', { roomCode, room: rooms[roomCode] });
+    });
+
+    // 2. Вход в комнату
+    socket.on('joinRoom', ({ roomCode, playerName, playerId }) => {
+        if (!roomCode || !playerId) return socket.emit('errorMsg', 'Ошибка данных!');
+        const code = roomCode.toUpperCase().trim();
+        const room = rooms[code];
+
+        if (!room) return socket.emit('errorMsg', 'Комната не найдена!');
+        
+        let existingPlayer = room.players.find(p => p.playerId === playerId);
+
+        if (!existingPlayer) {
+            if (room.players.length >= 6) return socket.emit('errorMsg', 'В комнате уже 6 игроков!');
+            if (room.gameState !== 'lobby') return socket.emit('errorMsg', 'Игра уже идет!');
+
+            existingPlayer = {
+                id: socket.id,
+                playerId: playerId,
+                name: playerName || `Игрок ${room.players.length + 1}`,
+                coins: 100,
+                points: 0,
+                currentBid: null,
+                hasBid: false
+            };
+            room.players.push(existingPlayer);
+        } else {
+            existingPlayer.id = socket.id;
+        }
+
+        socket.join(code);
         socket.emit('joinedSuccess', { roomCode: code, room });
         io.to(code).emit('updatePlayers', room.players);
     });
 
-    // 3. Переподключение после перезагрузки страницы (Rejoin)
-    socket.on('rejoinRoom', ({ roomCode, playerName }) => {
-        const code = roomCode ? roomCode.toUpperCase().trim() : '';
+    // 3. Восстановление сессии при F5 (Rejoin)
+    socket.on('rejoinRoom', ({ roomCode, playerId }) => {
+        if (!roomCode || !playerId) return socket.emit('rejoinFailed');
+
+        const code = roomCode.toUpperCase().trim();
         const room = rooms[code];
 
-        if (!room) {
-            return socket.emit('rejoinFailed');
-        }
+        if (!room) return socket.emit('rejoinFailed');
 
-        // Ищем существующего игрока по имени
-        let player = room.players.find(p => p.name === playerName);
+        const player = room.players.find(p => p.playerId === playerId);
+        if (!player) return socket.emit('rejoinFailed');
 
-        if (player) {
-            // Обновляем ID сокета у переподключившегося игрока
-            if (room.hostId === player.id) room.hostId = socket.id;
-            player.id = socket.id;
-        } else {
-            // Если игра еще в лобби, можем добавить его заново
-            if (room.gameState === 'lobby' && room.players.length < 6) {
-                player = {
-                    id: socket.id,
-                    name: playerName,
-                    coins: 100,
-                    points: 0,
-                    currentBid: null,
-                    hasBid: false
-                };
-                room.players.push(player);
-            } else {
-                return socket.emit('rejoinFailed');
-            }
+        // Обновляем актуальный ID сокета
+        player.id = socket.id;
+        if (room.hostPlayerId === playerId) {
+            room.hostId = socket.id;
         }
 
         socket.join(code);
 
-        // Отправляем игроку текущее состояние комнаты
+        // Отправляем полное текущее состояние
         socket.emit('rejoinedSuccess', {
             roomCode: code,
             room: room,
@@ -146,7 +142,7 @@ io.on('connection', (socket) => {
         const room = rooms[roomCode];
 
         if (room.players.length < 2) {
-            return socket.emit('errorMsg', 'Для игры нужно минимум 2 игрока!');
+            return socket.emit('errorMsg', 'Нужно минимум 2 игрока!');
         }
 
         room.gameState = 'playing';
@@ -171,7 +167,7 @@ io.on('connection', (socket) => {
         if (!roomCode || !player) return;
         const room = rooms[roomCode];
 
-        if (player.hasBid) return; // Нельзя ставить дважды за раунд
+        if (player.hasBid) return;
 
         const bidAmount = parseInt(bid, 10);
         if (isNaN(bidAmount) || bidAmount < 0 || bidAmount > player.coins) {
@@ -182,47 +178,27 @@ io.on('connection', (socket) => {
         player.hasBid = true;
 
         io.to(roomCode).emit('bidReceived', {
-            playersStatus: room.players.map(p => ({ id: p.id, hasBid: p.hasBid }))
+            playersStatus: room.players.map(p => ({ playerId: p.playerId, hasBid: p.hasBid }))
         });
 
         const allBidded = room.players.every(p => p.hasBid);
         if (allBidded) {
-            clearInterval(room.timer); // Останавливаем таймер
+            if (room.timer) clearInterval(room.timer);
             evaluateRound(roomCode);
         }
     });
 
-    // 6. Отключение игрока
     socket.on('disconnect', () => {
-        // Мы НЕ удаляем игрока мгновенно из списка во время игры,
-        // чтобы дать ему возможность переподключиться при перезагрузке
-        for (const code in rooms) {
-            const room = rooms[code];
-            const pIndex = room.players.findIndex(p => p.id === socket.id);
-
-            if (pIndex !== -1) {
-                // Если с момента отключения прошло 60 сек и он не вернулся — тогда очищаем
-                setTimeout(() => {
-                    const isStillDisconnected = !room.players.some(p => p.id === socket.id);
-                    if (isStillDisconnected && room.gameState === 'lobby') {
-                        room.players.splice(pIndex, 1);
-                        if (room.players.length === 0) delete rooms[code];
-                        else io.to(code).emit('updatePlayers', room.players);
-                    }
-                }, 60000);
-                break;
-            }
-        }
+        // Подключение сохраняется в объекте комнаты по playerId для восстановления
     });
 });
 
-// Новый раунд + запуск 20-секундного таймера
 function startNewRound(roomCode) {
     const room = rooms[roomCode];
     if (!room) return;
 
     room.currentLot = getRandomLot();
-    room.timeLeft = 20; // 20 секунд на раунд
+    room.timeLeft = 20;
 
     room.players.forEach(p => {
         p.currentBid = null;
@@ -235,7 +211,7 @@ function startNewRound(roomCode) {
         lot: room.currentLot,
         timeLeft: room.timeLeft,
         players: room.players.map(p => ({
-            id: p.id,
+            playerId: p.playerId,
             name: p.name,
             coins: p.coins,
             points: p.points,
@@ -245,16 +221,13 @@ function startNewRound(roomCode) {
 
     if (room.timer) clearInterval(room.timer);
 
-    // Запуск интервала обратного отсчета (каждую секунду)
     room.timer = setInterval(() => {
         room.timeLeft--;
         io.to(roomCode).emit('timerUpdate', room.timeLeft);
 
-        // Время вышло!
         if (room.timeLeft <= 0) {
             clearInterval(room.timer);
 
-            // Игрокам без ставки автоматически ставится 0 монет
             room.players.forEach(p => {
                 if (!p.hasBid) {
                     p.currentBid = 0;
@@ -267,7 +240,6 @@ function startNewRound(roomCode) {
     }, 1000);
 }
 
-// Расчет итогов раунда
 function evaluateRound(roomCode) {
     const room = rooms[roomCode];
     if (!room) return;
@@ -293,7 +265,7 @@ function evaluateRound(roomCode) {
         pointsGained: pointsPerWinner,
         isTie: winners.length > 1,
         players: room.players.map(p => ({
-            id: p.id,
+            playerId: p.playerId,
             name: p.name,
             coins: p.coins,
             points: p.points,
@@ -304,6 +276,7 @@ function evaluateRound(roomCode) {
     io.to(roomCode).emit('roundResult', resultData);
 
     setTimeout(() => {
+        if (!rooms[roomCode]) return;
         if (room.currentRound < room.maxRounds) {
             room.currentRound++;
             startNewRound(roomCode);
@@ -324,6 +297,4 @@ function evaluateRound(roomCode) {
 }
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-    console.log(`Сервер запущен на http://localhost:${PORT}`);
-});
+server.listen(PORT, () => console.log(`Сервер запущен на http://localhost:${PORT}`));

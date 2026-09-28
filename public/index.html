@@ -131,7 +131,6 @@
                 Очки: <b id="my-points" style="color: #4caf50;">0</b> ⭐
             </div>
 
-            <!-- Форма ставки -->
             <div id="bid-section">
                 <input type="number" id="bid-input" placeholder="Твоя ставка (монеты)" min="0">
                 <button id="btn-submit-bid">Сделать ставку</button>
@@ -146,7 +145,6 @@
             <h3>Соперники:</h3>
             <ul id="game-players-list" class="player-list"></ul>
 
-            <!-- Итоги раунда -->
             <div id="round-result" class="hidden" style="background: #333; padding: 10px; border-radius: 8px; margin-top: 10px;">
                 <h3 style="color: #ffca28; margin: 0 0 5px 0;">Итоги раунда</h3>
                 <p id="result-text" style="margin: 5px 0;"></p>
@@ -166,6 +164,17 @@
     <script>
         const socket = io();
 
+        function getOrCreatePlayerId() {
+            let pid = localStorage.getItem('lots_playerId');
+            if (!pid) {
+                pid = 'player_' + Math.random().toString(36).substr(2, 9);
+                localStorage.setItem('lots_playerId', pid);
+            }
+            return pid;
+        }
+
+        const myPlayerId = getOrCreatePlayerId();
+
         const authScreen = document.getElementById('auth-screen');
         const lobbyScreen = document.getElementById('lobby-screen');
         const gameScreen = document.getElementById('game-screen');
@@ -181,20 +190,20 @@
 
         let myCoins = 100;
 
-        // Попытка автоматически восстановить сессию при загрузке страницы
-        window.addEventListener('DOMContentLoaded', () => {
+        socket.on('connect', () => {
             const savedCode = localStorage.getItem('lots_roomCode');
             const savedName = localStorage.getItem('lots_playerName');
 
-            if (savedCode && savedName) {
-                playerNameInput.value = savedName;
-                socket.emit('rejoinRoom', { roomCode: savedCode, playerName: savedName });
+            if (savedName) playerNameInput.value = savedName;
+
+            if (savedCode) {
+                socket.emit('rejoinRoom', { roomCode: savedCode, playerId: myPlayerId });
             }
         });
 
         function saveSession(code, name) {
             localStorage.setItem('lots_roomCode', code);
-            localStorage.setItem('lots_playerName', name);
+            if (name) localStorage.setItem('lots_playerName', name);
         }
 
         function resetSession() {
@@ -205,14 +214,16 @@
         document.getElementById('btn-create').addEventListener('click', () => {
             const name = playerNameInput.value.trim();
             if (!name) return errorMsg.innerText = 'Введи имя!';
-            socket.emit('createRoom', { playerName: name });
+            saveSession('', name);
+            socket.emit('createRoom', { playerName: name, playerId: myPlayerId });
         });
 
         document.getElementById('btn-join').addEventListener('click', () => {
             const name = playerNameInput.value.trim();
             const code = roomCodeInput.value.trim();
             if (!name || !code) return errorMsg.innerText = 'Введи имя и код!';
-            socket.emit('joinRoom', { roomCode: code, playerName: name });
+            saveSession(code, name);
+            socket.emit('joinRoom', { roomCode: code, playerName: name, playerId: myPlayerId });
         });
 
         document.getElementById('btn-start').addEventListener('click', () => {
@@ -222,10 +233,10 @@
         document.getElementById('btn-submit-bid').addEventListener('click', () => {
             const bidVal = parseInt(document.getElementById('bid-input').value, 10);
             if (isNaN(bidVal) || bidVal < 0) {
-                return document.getElementById('game-error').innerText = 'Введи корректное число!';
+                return document.getElementById('game-error').innerText = 'Введи число!';
             }
             if (bidVal > myCoins) {
-                return document.getElementById('game-error').innerText = 'У тебя нет столько монет!';
+                return document.getElementById('game-error').innerText = 'Недостаточно монет!';
             }
             document.getElementById('game-error').innerText = '';
             socket.emit('submitBid', { bid: bidVal });
@@ -244,11 +255,12 @@
             enterLobby(roomCode, room);
         });
 
-        // Успешное восстановление после перезагрузки
         socket.on('rejoinedSuccess', (data) => {
+            saveSession(data.roomCode, null);
+
             if (data.gameState === 'lobby') {
                 enterLobby(data.roomCode, data.room);
-                if (data.room.hostId === socket.id) btnStart.classList.remove('hidden');
+                if (data.room.hostPlayerId === myPlayerId) btnStart.classList.remove('hidden');
             } else if (data.gameState === 'playing') {
                 authScreen.classList.add('hidden');
                 lobbyScreen.classList.add('hidden');
@@ -258,14 +270,18 @@
                 document.getElementById('current-lot').innerText = data.currentLot;
                 timerDisplay.innerText = data.timeLeft;
 
-                const me = data.room.players.find(p => p.id === socket.id);
+                const me = data.room.players.find(p => p.playerId === myPlayerId);
                 if (me) {
                     myCoins = me.coins;
                     document.getElementById('my-coins').innerText = me.coins;
                     document.getElementById('my-points').innerText = me.points;
+
                     if (me.hasBid) {
                         document.getElementById('bid-section').classList.add('hidden');
                         document.getElementById('bid-status-msg').classList.remove('hidden');
+                    } else {
+                        document.getElementById('bid-section').classList.remove('hidden');
+                        document.getElementById('bid-status-msg').classList.add('hidden');
                     }
                 }
                 renderGamePlayers(data.room.players);
@@ -282,12 +298,10 @@
             document.getElementById('lobby-error').innerText = msg;
         });
 
-        // Обновление таймера
         socket.on('timerUpdate', (timeLeft) => {
             timerDisplay.innerText = timeLeft;
         });
 
-        // Новый раунд
         socket.on('newRoundStarted', (data) => {
             authScreen.classList.add('hidden');
             lobbyScreen.classList.add('hidden');
@@ -298,7 +312,7 @@
             document.getElementById('current-lot').innerText = data.lot;
             timerDisplay.innerText = data.timeLeft;
 
-            const me = data.players.find(p => p.id === socket.id);
+            const me = data.players.find(p => p.playerId === myPlayerId);
             if (me) {
                 myCoins = me.coins;
                 document.getElementById('my-coins').innerText = me.coins;
@@ -314,7 +328,7 @@
 
         socket.on('bidReceived', ({ playersStatus }) => {
             playersStatus.forEach(ps => {
-                const badge = document.getElementById(`status-${ps.id}`);
+                const badge = document.getElementById(`status-${ps.playerId}`);
                 if (badge && ps.hasBid) {
                     badge.innerText = 'Сделал ставку';
                     badge.className = 'status-badge ready';
@@ -334,7 +348,7 @@
                     `Победитель раунда: <b>${winnersStr}</b>!<br>Ставка: <b>${data.maxBid}</b> 🪙. Получено: <b>${data.pointsGained}</b> ⭐!`;
             }
 
-            const me = data.players.find(p => p.id === socket.id);
+            const me = data.players.find(p => p.playerId === myPlayerId);
             if (me) {
                 myCoins = me.coins;
                 document.getElementById('my-coins').innerText = me.coins;
@@ -371,7 +385,7 @@
             playersList.innerHTML = '';
             players.forEach(p => {
                 const li = document.createElement('li');
-                li.innerText = p.name + (p.id === socket.id ? ' (Ты)' : '');
+                li.innerText = p.name + (p.playerId === myPlayerId ? ' (Ты)' : '');
                 playersList.appendChild(li);
             });
         }
@@ -380,10 +394,10 @@
             const list = document.getElementById('game-players-list');
             list.innerHTML = '';
             players.forEach(p => {
-                if (p.id === socket.id) return;
+                if (p.playerId === myPlayerId) return;
 
                 const li = document.createElement('li');
-                let statusText = p.hasBid ? `<span id="status-${p.id}" class="status-badge ready">Сделал ставку</span>` : `<span id="status-${p.id}" class="status-badge waiting">Думает...</span>`;
+                let statusText = p.hasBid ? `<span id="status-${p.playerId}" class="status-badge ready">Сделал ставку</span>` : `<span id="status-${p.playerId}" class="status-badge waiting">Думает...</span>`;
                 
                 if (showLastBid && p.lastBid !== undefined) {
                     statusText = `<span style="color:#ffca28;">Ставил: ${p.lastBid} 🪙</span>`;
