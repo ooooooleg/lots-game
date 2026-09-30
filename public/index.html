@@ -54,7 +54,24 @@
         }
 
         button:hover { background-color: #ffb300; }
-        .hidden { display: none; }
+        
+        .btn-danger {
+            background-color: #e53935;
+            color: #ffffff;
+        }
+        .btn-danger:hover {
+            background-color: #c62828;
+        }
+
+        .btn-secondary {
+            background-color: #555555;
+            color: #ffffff;
+        }
+        .btn-secondary:hover {
+            background-color: #444444;
+        }
+
+        .hidden { display: none !important; }
         
         .player-list { list-style: none; padding: 0; margin: 15px 0; }
         .player-list li {
@@ -112,6 +129,7 @@
             <p>Игроки в комнате:</p>
             <ul id="players-list" class="player-list"></ul>
             <button id="btn-start" class="hidden">Начать игру</button>
+            <button id="btn-leave-lobby" class="btn-danger">Выйти из комнаты</button>
             <p id="lobby-error" class="error"></p>
         </div>
 
@@ -149,6 +167,9 @@
                 <h3 style="color: #ffca28; margin: 0 0 5px 0;">Итоги раунда</h3>
                 <p id="result-text" style="margin: 5px 0;"></p>
             </div>
+
+            <hr style="border-color: #444; margin: 15px 0;">
+            <button id="btn-leave-game" class="btn-secondary">Выйти из игры</button>
         </div>
 
         <!-- ЭКРАН 4: Финал -->
@@ -157,7 +178,8 @@
             <h3 id="winner-announcement" style="color: #ffca28;"></h3>
             <h3>Итоговая таблица:</h3>
             <ul id="final-players-list" class="player-list"></ul>
-            <button onclick="resetSession()">Сыграть еще раз</button>
+            <button id="btn-play-again" class="hidden">Сыграть еще раз</button>
+            <button id="btn-exit-to-menu" class="btn-secondary">Выйти в меню</button>
         </div>
     </div>
 
@@ -187,6 +209,7 @@
         const playersList = document.getElementById('players-list');
         const btnStart = document.getElementById('btn-start');
         const timerDisplay = document.getElementById('timer-display');
+        const btnPlayAgain = document.getElementById('btn-play-again');
 
         let myCoins = 100;
 
@@ -206,9 +229,14 @@
             if (name) localStorage.setItem('lots_playerName', name);
         }
 
-        function resetSession() {
+        function resetToMenu() {
             localStorage.removeItem('lots_roomCode');
-            location.reload();
+            gameScreen.classList.add('hidden');
+            lobbyScreen.classList.add('hidden');
+            finalScreen.classList.add('hidden');
+            authScreen.classList.remove('hidden');
+            btnStart.classList.add('hidden');
+            btnPlayAgain.classList.add('hidden');
         }
 
         document.getElementById('btn-create').addEventListener('click', () => {
@@ -230,6 +258,22 @@
             socket.emit('startGame');
         });
 
+        document.getElementById('btn-leave-lobby').addEventListener('click', () => {
+            socket.emit('leaveRoom');
+        });
+
+        document.getElementById('btn-leave-game').addEventListener('click', () => {
+            socket.emit('leaveRoom');
+        });
+
+        document.getElementById('btn-exit-to-menu').addEventListener('click', () => {
+            socket.emit('leaveRoom');
+        });
+
+        btnPlayAgain.addEventListener('click', () => {
+            socket.emit('restartGame');
+        });
+
         document.getElementById('btn-submit-bid').addEventListener('click', () => {
             const bidVal = parseInt(document.getElementById('bid-input').value, 10);
             if (isNaN(bidVal) || bidVal < 0) {
@@ -242,6 +286,21 @@
             socket.emit('submitBid', { bid: bidVal });
             document.getElementById('bid-section').classList.add('hidden');
             document.getElementById('bid-status-msg').classList.remove('hidden');
+        });
+
+        socket.on('leftRoomSuccess', () => {
+            resetToMenu();
+        });
+
+        socket.on('returnedToLobby', ({ roomCode, room }) => {
+            gameScreen.classList.add('hidden');
+            finalScreen.classList.add('hidden');
+            enterLobby(roomCode, room);
+            if (room.hostPlayerId === myPlayerId) {
+                btnStart.classList.remove('hidden');
+            } else {
+                btnStart.classList.add('hidden');
+            }
         });
 
         socket.on('roomCreated', ({ roomCode, room }) => {
@@ -289,7 +348,7 @@
         });
 
         socket.on('rejoinFailed', () => {
-            localStorage.removeItem('lots_roomCode');
+            resetToMenu();
         });
 
         socket.on('updatePlayers', (players) => renderLobbyPlayers(players));
@@ -358,7 +417,6 @@
         });
 
         socket.on('gameOver', (data) => {
-            localStorage.removeItem('lots_roomCode');
             gameScreen.classList.add('hidden');
             finalScreen.classList.remove('hidden');
 
@@ -372,6 +430,13 @@
                 li.innerHTML = `<span>${p.name}</span> <span><b>${p.points}</b> ⭐ (осталось ${p.coins} 🪙)</span>`;
                 list.appendChild(li);
             });
+
+            // Показываем кнопку "Сыграть еще раз" ТОЛЬКО создателю (хосту)
+            if (data.hostPlayerId === myPlayerId) {
+                btnPlayAgain.classList.remove('hidden');
+            } else {
+                btnPlayAgain.classList.add('hidden');
+            }
         });
 
         function enterLobby(code, room) {

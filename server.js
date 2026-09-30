@@ -33,6 +33,27 @@ function getRandomLot() {
     return (Math.floor(Math.random() * 9) + 2) * 5;
 }
 
+function getCleanRoom(room) {
+    return {
+        roomId: room.roomId,
+        hostId: room.hostId,
+        hostPlayerId: room.hostPlayerId,
+        gameState: room.gameState,
+        currentRound: room.currentRound,
+        maxRounds: room.maxRounds,
+        currentLot: room.currentLot,
+        timeLeft: room.timeLeft,
+        players: room.players.map(p => ({
+            id: p.id,
+            playerId: p.playerId,
+            name: p.name,
+            coins: p.coins,
+            points: p.points,
+            hasBid: p.hasBid
+        }))
+    };
+}
+
 io.on('connection', (socket) => {
 
     socket.on('createRoom', ({ playerName, playerId }) => {
@@ -68,7 +89,7 @@ io.on('connection', (socket) => {
             };
 
             socket.join(roomCode);
-            socket.emit('roomCreated', { roomCode, room: rooms[roomCode] });
+            socket.emit('roomCreated', { roomCode, room: getCleanRoom(rooms[roomCode]) });
         } catch (err) {
             console.error('Error in createRoom:', err);
         }
@@ -103,7 +124,7 @@ io.on('connection', (socket) => {
             }
 
             socket.join(code);
-            socket.emit('joinedSuccess', { roomCode: code, room });
+            socket.emit('joinedSuccess', { roomCode: code, room: getCleanRoom(room) });
             io.to(code).emit('updatePlayers', room.players);
         } catch (err) {
             console.error('Error in joinRoom:', err);
@@ -131,7 +152,7 @@ io.on('connection', (socket) => {
 
             socket.emit('rejoinedSuccess', {
                 roomCode: code,
-                room: room,
+                room: getCleanRoom(room),
                 gameState: room.gameState,
                 currentLot: room.currentLot,
                 currentRound: room.currentRound,
@@ -167,6 +188,84 @@ io.on('connection', (socket) => {
             startNewRound(roomCode);
         } catch (err) {
             console.error('Error in startGame:', err);
+        }
+    });
+
+    // Перезапуск игры создателем комнаты
+    socket.on('restartGame', () => {
+        try {
+            let roomCode = null;
+            for (const code in rooms) {
+                if (rooms[code] && rooms[code].hostId === socket.id) {
+                    roomCode = code;
+                    break;
+                }
+            }
+
+            if (!roomCode) return;
+            const room = rooms[roomCode];
+
+            if (room.timer) clearInterval(room.timer);
+
+            room.gameState = 'lobby';
+            room.currentRound = 0;
+            room.currentLot = 0;
+            room.timeLeft = 20;
+
+            // Сбрасываем счетники всех игроков
+            room.players.forEach(p => {
+                p.coins = 100;
+                p.points = 0;
+                p.currentBid = null;
+                p.hasBid = false;
+            });
+
+            // Отправляем ВСЕХ участников обратно в лобби комнаты
+            io.to(roomCode).emit('returnedToLobby', {
+                roomCode: roomCode,
+                room: getCleanRoom(room)
+            });
+        } catch (err) {
+            console.error('Error in restartGame:', err);
+        }
+    });
+
+    // Обработка выхода из комнаты / игры
+    socket.on('leaveRoom', () => {
+        try {
+            let roomCode = null;
+            let playerIndex = -1;
+
+            for (const code in rooms) {
+                if (!rooms[code]) continue;
+                const idx = rooms[code].players.findIndex(p => p.id === socket.id);
+                if (idx !== -1) {
+                    roomCode = code;
+                    playerIndex = idx;
+                    break;
+                }
+            }
+
+            if (!roomCode) return;
+            const room = rooms[roomCode];
+
+            room.players.splice(playerIndex, 1);
+            socket.leave(roomCode);
+
+            if (room.players.length === 0) {
+                if (room.timer) clearInterval(room.timer);
+                delete rooms[roomCode];
+            } else {
+                if (room.hostId === socket.id) {
+                    room.hostId = room.players[0].id;
+                    room.hostPlayerId = room.players[0].playerId;
+                }
+                io.to(roomCode).emit('updatePlayers', room.players);
+            }
+
+            socket.emit('leftRoomSuccess');
+        } catch (err) {
+            console.error('Error in leaveRoom:', err);
         }
     });
 
@@ -319,7 +418,8 @@ function evaluateRound(roomCode) {
 
             io.to(roomCode).emit('gameOver', {
                 winners: gameWinners,
-                players: currentRoom.players
+                players: currentRoom.players,
+                hostPlayerId: currentRoom.hostPlayerId
             });
         }
     }, 5000);
