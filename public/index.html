@@ -21,14 +21,15 @@
             padding: 1.5rem;
             border-radius: 12px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-            width: 90%;
-            max-width: 420px;
+            width: 94%;
+            max-width: 560px;
             text-align: center;
         }
 
         h1, h2 { margin-top: 0; color: #ffca28; }
+        h3 { margin: 12px 0 6px 0; font-size: 16px; }
 
-        input {
+        input, select {
             width: 85%;
             padding: 10px;
             margin: 8px 0;
@@ -39,6 +40,8 @@
             font-size: 16px;
             text-align: center;
         }
+
+        select { cursor: pointer; }
 
         button {
             width: 90%;
@@ -81,7 +84,35 @@
             border-radius: 6px;
             display: flex;
             justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            text-align: left;
         }
+
+        /* Свой ник выделяется */
+        .player-list li.me {
+            background: #3d3a24;
+            border: 1px solid #ffca28;
+            box-shadow: 0 0 8px rgba(255, 202, 40, 0.35);
+        }
+        .player-list li.me .pl-name {
+            color: #ffca28;
+            font-weight: bold;
+        }
+
+        .host-crown { color: #ffca28; margin-right: 4px; }
+
+        .kick-btn {
+            width: auto;
+            margin: 0;
+            padding: 5px 11px;
+            font-size: 13px;
+            border-radius: 5px;
+            background: #e53935;
+            color: #fff;
+            flex: 0 0 auto;
+        }
+        .kick-btn:hover { background: #c62828; }
 
         .lot-box {
             background: #ffca28;
@@ -100,10 +131,108 @@
             margin-bottom: 10px;
         }
 
-        .status-badge { font-size: 12px; padding: 3px 8px; border-radius: 4px; }
+        .status-badge { font-size: 12px; padding: 3px 8px; border-radius: 4px; white-space: nowrap; }
         .ready { background: #4caf50; color: white; }
         .waiting { background: #ff9800; color: white; }
         .error { color: #f44336; margin-top: 10px; }
+
+        .mode-box {
+            background: #333;
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 10px;
+            margin: 12px 0;
+        }
+        .mode-box .mode-title { font-size: 14px; color: #bbb; margin-bottom: 4px; }
+        .mode-box select { width: 100%; margin: 4px 0; }
+        .mode-current { color: #ffca28; font-weight: bold; font-size: 17px; }
+
+        .small-note { font-size: 13px; color: #9e9e9e; }
+
+        /* --- Способности --- */
+        .abilities-box {
+            background: #333;
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 8px 10px;
+            margin: 10px 0;
+            text-align: left;
+        }
+        .abilities-box .ab-head { font-size: 13px; color: #bbb; margin-bottom: 4px; }
+        .chip {
+            display: inline-block;
+            background: #444;
+            border-radius: 12px;
+            padding: 3px 9px;
+            margin: 3px 4px 3px 0;
+            font-size: 13px;
+        }
+        .chip.active { background: #4a3a12; color: #ffd54f; border: 1px solid #ffca28; }
+        .chip.passive { background: #1f3d2b; color: #7bd88f; border: 1px solid #4caf50; }
+
+        .ability-cards {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 12px 0;
+            flex-wrap: wrap;
+        }
+
+        .ability-card {
+            background: #333;
+            border: 2px solid #555;
+            border-radius: 10px;
+            padding: 12px 10px;
+            width: 165px;
+            cursor: pointer;
+            transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+            text-align: center;
+        }
+        .ability-card:hover { border-color: #ffca28; }
+        .ability-card .ac-title {
+            font-weight: bold;
+            color: #ffca28;
+            margin-bottom: 6px;
+            font-size: 15px;
+        }
+        .ability-card .ac-desc { font-size: 12px; color: #ddd; line-height: 1.35; }
+        .ability-card .ac-type { font-size: 11px; color: #9e9e9e; margin-top: 6px; }
+
+        /* Выбранная способность выделяется: становится больше */
+        .ability-card.selected {
+            transform: scale(1.09);
+            border-color: #ffca28;
+            box-shadow: 0 0 18px rgba(255, 202, 40, 0.55);
+            background: #3d3a24;
+        }
+        .ability-cards.locked .ability-card { pointer-events: none; opacity: .85; }
+
+        .target-box { margin: 10px 0; }
+        .target-box .tb-title { font-size: 14px; color: #bbb; margin-bottom: 6px; }
+        .target-btn {
+            width: auto;
+            margin: 4px;
+            padding: 8px 12px;
+            font-size: 14px;
+            background: #444;
+            color: #fff;
+        }
+        .target-btn:hover { background: #555; }
+        .target-btn.selected { background: #ffca28; color: #1a1a1a; }
+
+        .chosen-line { color: #7bd88f; font-weight: bold; margin-top: 10px; }
+
+        .result-log {
+            margin: 6px 0 0 0;
+            padding: 0;
+            list-style: none;
+            font-size: 13px;
+            color: #b3e5b3;
+        }
+        .result-log li { margin: 2px 0; }
+
+        .bid-line { font-size: 13px; color: #bbb; margin-top: 6px; }
+        .revealed-bid { color: #7bd88f; font-size: 12px; }
     </style>
     <script src="/socket.io/socket.io.js"></script>
 </head>
@@ -126,6 +255,17 @@
         <!-- ЭКРАН 2: Лобби комнаты -->
         <div id="lobby-screen" class="hidden">
             <h2>Код: <span id="display-code" style="color: #4caf50;">----</span></h2>
+
+            <div class="mode-box">
+                <div class="mode-title">Режим игры</div>
+                <select id="mode-select" class="hidden">
+                    <option value="normal">Обычный</option>
+                    <option value="abilities">Со способностями</option>
+                </select>
+                <div id="mode-label" class="mode-current">Обычный</div>
+                <div id="mode-hint" class="small-note"></div>
+            </div>
+
             <p>Игроки в комнате:</p>
             <ul id="players-list" class="player-list"></ul>
             <button id="btn-start" class="hidden">Начать игру</button>
@@ -137,11 +277,14 @@
         <div id="game-screen" class="hidden">
             <div class="timer-box">⏳ Осталось: <span id="timer-display">20</span> сек</div>
 
-            <div>Раунд <span id="current-round">1</span> из 5</div>
-            
+            <div>Раунд <span id="current-round">1</span> из <span id="max-rounds">5</span></div>
+
+            <div class="small-note" id="game-mode-note"></div>
+
             <div class="lot-box">
                 Разыгрывается: <br>
                 <span id="current-lot" style="font-size: 36px;">0</span> очков
+                <div class="small-note" id="lot-note" style="color:#1a1a1a;"></div>
             </div>
 
             <div style="margin: 10px 0; font-size: 18px;">
@@ -149,9 +292,16 @@
                 Очки: <b id="my-points" style="color: #4caf50;">0</b> ⭐
             </div>
 
+            <div id="my-abilities-box" class="abilities-box hidden">
+                <div class="ab-head">Мои способности</div>
+                <div id="my-active-list"></div>
+                <div id="my-passive-list"></div>
+            </div>
+
             <div id="bid-section">
                 <input type="number" id="bid-input" placeholder="Твоя ставка (монеты)" min="0">
                 <button id="btn-submit-bid">Сделать ставку</button>
+                <div class="bid-line">Оставь поле пустым — поставишь 0 монет</div>
             </div>
             
             <div id="bid-status-msg" class="hidden" style="color: #4caf50; font-weight: bold; margin: 15px 0;">
@@ -166,13 +316,43 @@
             <div id="round-result" class="hidden" style="background: #333; padding: 10px; border-radius: 8px; margin-top: 10px;">
                 <h3 style="color: #ffca28; margin: 0 0 5px 0;">Итоги раунда</h3>
                 <p id="result-text" style="margin: 5px 0;"></p>
+                <ul id="result-log" class="result-log"></ul>
             </div>
 
             <hr style="border-color: #444; margin: 15px 0;">
             <button id="btn-leave-game" class="btn-secondary">Выйти из игры</button>
         </div>
 
-        <!-- ЭКРАН 4: Финал -->
+        <!-- ЭКРАН 4: Выбор способности -->
+        <div id="ability-screen" class="hidden">
+            <h2>Раунд <span id="ab-round">1</span> из <span id="ab-max-rounds">7</span></h2>
+            <h3 style="color: #ffca28;">🎁 Выбор способности</h3>
+
+            <div class="timer-box">⏳ Выбор: <span id="ab-timer">10</span> сек</div>
+
+            <div class="small-note">Время раунда не идёт, пока идёт выбор. Активную способность можно применить только один раз за игру.</div>
+
+            <div id="my-abilities-box-2" class="abilities-box hidden">
+                <div class="ab-head">Уже выбранные способности</div>
+                <div id="my-active-list-2"></div>
+                <div id="my-passive-list-2"></div>
+            </div>
+
+            <div id="ab-cards" class="ability-cards"></div>
+
+            <div id="ab-targets" class="target-box hidden">
+                <div class="tb-title">Выбери соперника:</div>
+                <div id="ab-target-list"></div>
+            </div>
+
+            <div id="ab-chosen" class="chosen-line hidden"></div>
+
+            <div class="small-note" style="margin-top: 12px;">
+                Соперники не видят, какую способность выбрал ты.
+            </div>
+        </div>
+
+        <!-- ЭКРАН 5: Финал -->
         <div id="final-screen" class="hidden">
             <h2>🏆 ИГРА ЗАВЕРШЕНА 🏆</h2>
             <h3 id="winner-announcement" style="color: #ffca28;"></h3>
@@ -200,6 +380,7 @@
         const authScreen = document.getElementById('auth-screen');
         const lobbyScreen = document.getElementById('lobby-screen');
         const gameScreen = document.getElementById('game-screen');
+        const abilityScreen = document.getElementById('ability-screen');
         const finalScreen = document.getElementById('final-screen');
 
         const playerNameInput = document.getElementById('player-name');
@@ -210,8 +391,34 @@
         const btnStart = document.getElementById('btn-start');
         const timerDisplay = document.getElementById('timer-display');
         const btnPlayAgain = document.getElementById('btn-play-again');
+        const modeSelect = document.getElementById('mode-select');
+        const modeLabel = document.getElementById('mode-label');
+        const modeHint = document.getElementById('mode-hint');
+        const bidInput = document.getElementById('bid-input');
+        const bidSection = document.getElementById('bid-section');
+        const bidStatusMsg = document.getElementById('bid-status-msg');
+        const gameError = document.getElementById('game-error');
+        const abCards = document.getElementById('ab-cards');
+        const abTargets = document.getElementById('ab-targets');
+        const abTargetList = document.getElementById('ab-target-list');
+        const abChosen = document.getElementById('ab-chosen');
+
+        const MODE_LABELS = { normal: 'Обычный', abilities: 'Со способностями' };
+        const MODE_HINTS = {
+            normal: '5 раундов, без способностей',
+            abilities: '7 раундов, выбор способностей в 1, 3 и 5 раундах'
+        };
 
         let myCoins = 100;
+        let hostId = null;
+        let currentMode = 'normal';
+        let abilityOptions = [];
+        let abSelectedId = null;
+        let abTargetId = null;
+        let abLocked = false;
+        let revealedBids = {};
+        let myAbilities = { active: [], passive: [] };
+        let knownPlayers = [];
 
         socket.on('connect', () => {
             const savedCode = localStorage.getItem('lots_roomCode');
@@ -229,16 +436,35 @@
             if (name) localStorage.setItem('lots_playerName', name);
         }
 
+        function hideAllScreens() {
+            [authScreen, lobbyScreen, gameScreen, abilityScreen, finalScreen]
+                .forEach(s => s.classList.add('hidden'));
+        }
+
         function resetToMenu() {
             localStorage.removeItem('lots_roomCode');
-            gameScreen.classList.add('hidden');
-            lobbyScreen.classList.add('hidden');
-            finalScreen.classList.add('hidden');
+            hideAllScreens();
             authScreen.classList.remove('hidden');
             btnStart.classList.add('hidden');
             btnPlayAgain.classList.add('hidden');
+            resetAbilityState();
         }
 
+        function resetAbilityState() {
+            abilityOptions = [];
+            abSelectedId = null;
+            abTargetId = null;
+            abLocked = false;
+            revealedBids = {};
+            myAbilities = { active: [], passive: [] };
+            abCards.innerHTML = '';
+            abTargets.classList.add('hidden');
+            abTargetList.innerHTML = '';
+            abChosen.classList.add('hidden');
+            abChosen.innerText = '';
+        }
+
+        // ---------------- Меню ----------------
         document.getElementById('btn-create').addEventListener('click', () => {
             const name = playerNameInput.value.trim();
             if (!name) return errorMsg.innerText = 'Введи имя!';
@@ -274,43 +500,55 @@
             socket.emit('restartGame');
         });
 
-        document.getElementById('btn-submit-bid').addEventListener('click', () => {
-            const bidVal = parseInt(document.getElementById('bid-input').value, 10);
-            if (isNaN(bidVal) || bidVal < 0) {
-                return document.getElementById('game-error').innerText = 'Введи число!';
-            }
-            if (bidVal > myCoins) {
-                return document.getElementById('game-error').innerText = 'Недостаточно монет!';
-            }
-            document.getElementById('game-error').innerText = '';
-            socket.emit('submitBid', { bid: bidVal });
-            document.getElementById('bid-section').classList.add('hidden');
-            document.getElementById('bid-status-msg').classList.remove('hidden');
+        modeSelect.addEventListener('change', () => {
+            socket.emit('setGameMode', { mode: modeSelect.value });
         });
 
-        socket.on('leftRoomSuccess', () => {
-            resetToMenu();
+        document.getElementById('btn-submit-bid').addEventListener('click', () => {
+            const raw = bidInput.value.trim();
+            // Если поле пустое — ставим 0 монет
+            const bidVal = raw === '' ? 0 : parseInt(raw, 10);
+
+            if (isNaN(bidVal) || bidVal < 0) {
+                return gameError.innerText = 'Введи число!';
+            }
+            if (bidVal > myCoins) {
+                return gameError.innerText = 'Недостаточно монет!';
+            }
+            gameError.innerText = '';
+            socket.emit('submitBid', { bid: bidVal });
+            bidSection.classList.add('hidden');
+            bidStatusMsg.classList.remove('hidden');
+        });
+
+        // ---------------- События сервера ----------------
+        socket.on('leftRoomSuccess', () => resetToMenu());
+
+        socket.on('playerKicked', () => {
+            hideAllScreens();
+            authScreen.classList.remove('hidden');
+            localStorage.removeItem('lots_roomCode');
+            errorMsg.innerText = 'Тебя исключил создатель комнаты';
+            btnStart.classList.add('hidden');
+            resetAbilityState();
         });
 
         socket.on('returnedToLobby', ({ roomCode, room }) => {
-            gameScreen.classList.add('hidden');
-            finalScreen.classList.add('hidden');
+            hideAllScreens();
             enterLobby(roomCode, room);
-            if (room.hostPlayerId === myPlayerId) {
-                btnStart.classList.remove('hidden');
-            } else {
-                btnStart.classList.add('hidden');
-            }
+            btnStart.classList.toggle('hidden', room.hostPlayerId !== myPlayerId);
         });
 
         socket.on('roomCreated', ({ roomCode, room }) => {
             saveSession(roomCode, playerNameInput.value.trim());
+            hideAllScreens();
             enterLobby(roomCode, room);
             btnStart.classList.remove('hidden');
         });
 
         socket.on('joinedSuccess', ({ roomCode, room }) => {
             saveSession(roomCode, playerNameInput.value.trim());
+            hideAllScreens();
             enterLobby(roomCode, room);
         });
 
@@ -318,70 +556,122 @@
             saveSession(data.roomCode, null);
 
             if (data.gameState === 'lobby') {
+                hideAllScreens();
                 enterLobby(data.roomCode, data.room);
-                if (data.room.hostPlayerId === myPlayerId) btnStart.classList.remove('hidden');
-            } else if (data.gameState === 'playing') {
-                authScreen.classList.add('hidden');
-                lobbyScreen.classList.add('hidden');
-                gameScreen.classList.remove('hidden');
+                btnStart.classList.toggle('hidden', data.room.hostPlayerId !== myPlayerId);
+                return;
+            }
 
+            if (data.gameState === 'abilitySelect') {
+                enterAbilityScreen({
+                    round: data.currentRound,
+                    maxRounds: data.maxRounds,
+                    timeLeft: data.timeLeft,
+                    options: data.abilityOptions || [],
+                    myAbilities: data.myAbilities,
+                    players: data.room.players
+                });
+                return;
+            }
+
+            if (data.gameState === 'playing' || data.gameState === 'resolving') {
+                enterGameScreen();
                 document.getElementById('current-round').innerText = data.currentRound;
-                document.getElementById('current-lot').innerText = data.currentLot;
+                document.getElementById('max-rounds').innerText = data.maxRounds;
+                document.getElementById('game-mode-note').innerText =
+                    'Режим: ' + (MODE_LABELS[data.mode] || MODE_LABELS.normal);
+                setLot(data.currentLot, !!data.blind);
                 timerDisplay.innerText = data.timeLeft;
+                myAbilities = data.myAbilities || { active: [], passive: [] };
+                renderMyAbilities();
 
                 const me = data.room.players.find(p => p.playerId === myPlayerId);
                 if (me) {
                     myCoins = me.coins;
                     document.getElementById('my-coins').innerText = me.coins;
                     document.getElementById('my-points').innerText = me.points;
-
+                    bidInput.max = me.coins;
                     if (me.hasBid) {
-                        document.getElementById('bid-section').classList.add('hidden');
-                        document.getElementById('bid-status-msg').classList.remove('hidden');
+                        bidSection.classList.add('hidden');
+                        bidStatusMsg.classList.remove('hidden');
                     } else {
-                        document.getElementById('bid-section').classList.remove('hidden');
-                        document.getElementById('bid-status-msg').classList.add('hidden');
+                        bidSection.classList.remove('hidden');
+                        bidStatusMsg.classList.add('hidden');
                     }
                 }
                 renderGamePlayers(data.room.players);
             }
         });
 
-        socket.on('rejoinFailed', () => {
-            resetToMenu();
+        socket.on('rejoinFailed', () => resetToMenu());
+
+        socket.on('updatePlayers', (room) => {
+            if (!room) return;
+            hostId = room.hostPlayerId;
+            currentMode = room.mode || 'normal';
+            knownPlayers = room.players || [];
+
+            if (lobbyScreen.classList.contains('hidden')) {
+                // Обновление во время игры — список соперников
+                if (room.gameState === 'playing' || room.gameState === 'resolving') {
+                    renderGamePlayers(room.players);
+                }
+                return;
+            }
+
+            renderModeBlock();
+            renderLobbyPlayers(room.players, room.hostPlayerId);
         });
 
-        socket.on('updatePlayers', (players) => renderLobbyPlayers(players));
         socket.on('errorMsg', (msg) => {
             errorMsg.innerText = msg;
             document.getElementById('lobby-error').innerText = msg;
+            gameError.innerText = msg;
         });
 
         socket.on('timerUpdate', (timeLeft) => {
             timerDisplay.innerText = timeLeft;
         });
 
+        // --- Выбор способностей ---
+        socket.on('abilitySelectionStarted', (data) => {
+            enterAbilityScreen(data);
+        });
+
+        socket.on('abilitySelectTick', ({ timeLeft }) => {
+            document.getElementById('ab-timer').innerText = timeLeft;
+        });
+
+        // --- Раунд ---
         socket.on('newRoundStarted', (data) => {
-            authScreen.classList.add('hidden');
-            lobbyScreen.classList.add('hidden');
-            gameScreen.classList.remove('hidden');
+            enterGameScreen();
             document.getElementById('round-result').classList.add('hidden');
+            gameError.innerText = '';
 
             document.getElementById('current-round').innerText = data.round;
-            document.getElementById('current-lot').innerText = data.lot;
+            document.getElementById('max-rounds').innerText = data.maxRounds;
+            document.getElementById('game-mode-note').innerText =
+                'Режим: ' + (MODE_LABELS[currentMode] || MODE_LABELS.normal);
+            setLot(data.lot, !!data.lotHidden);
             timerDisplay.innerText = data.timeLeft;
+
+            revealedBids = {};
+            document.getElementById('lot-note').innerText = data.note || '';
+
+            myAbilities = data.myAbilities || { active: [], passive: [] };
+            renderMyAbilities();
 
             const me = data.players.find(p => p.playerId === myPlayerId);
             if (me) {
                 myCoins = me.coins;
                 document.getElementById('my-coins').innerText = me.coins;
                 document.getElementById('my-points').innerText = me.points;
-                document.getElementById('bid-input').max = me.coins;
-                document.getElementById('bid-input').value = '';
+                bidInput.max = me.coins;
+                bidInput.value = '';
             }
 
-            document.getElementById('bid-section').classList.remove('hidden');
-            document.getElementById('bid-status-msg').classList.add('hidden');
+            bidSection.classList.remove('hidden');
+            bidStatusMsg.classList.add('hidden');
             renderGamePlayers(data.players);
         });
 
@@ -395,17 +685,43 @@
             });
         });
 
+        // Глаз-алмаз: показываем ставку выбранного игрока
+        socket.on('bidRevealed', ({ playerId, bid }) => {
+            revealedBids[playerId] = bid;
+            renderRevealedBid(playerId, bid);
+        });
+
         socket.on('roundResult', (data) => {
             document.getElementById('round-result').classList.remove('hidden');
             const winnersStr = data.winnersNames.join(', ');
-            
+
+            let text;
             if (data.isTie) {
-                document.getElementById('result-text').innerHTML = 
-                    `Ничья! Победители: <b>${winnersStr}</b>.<br>Ставка: <b>${data.maxBid}</b> 🪙. Каждый получил по <b>${data.pointsGained}</b> ⭐!`;
+                text = `Ничья! Победители: <b>${winnersStr}</b>.<br>`;
             } else {
-                document.getElementById('result-text').innerHTML = 
-                    `Победитель раунда: <b>${winnersStr}</b>!<br>Ставка: <b>${data.maxBid}</b> 🪙. Получено: <b>${data.pointsGained}</b> ⭐!`;
+                text = `Победитель раунда: <b>${winnersStr}</b>!<br>`;
             }
+
+            text += data.lotHidden
+                ? `Очки за раунд скрыты 🔒<br>Ставка победителя: <b>${data.maxBid}</b> 🪙.`
+                : `Лот: <b>${data.lot}</b> ⭐, ставка победителя: <b>${data.maxBid}</b> 🪙.`;
+
+            text += data.didWin
+                ? `<br>Ты получил: <b>${data.pointsGained}</b> ⭐!`
+                : `<br>Ты не победил и получаешь <b>0</b> ⭐.`;
+
+            document.getElementById('result-text').innerHTML = text;
+
+            const logList = document.getElementById('result-log');
+            logList.innerHTML = '';
+            (data.logs || []).forEach(line => {
+                const li = document.createElement('li');
+                li.innerText = line;
+                logList.appendChild(li);
+            });
+
+            myAbilities = data.myAbilities || { active: [], passive: [] };
+            renderMyAbilities();
 
             const me = data.players.find(p => p.playerId === myPlayerId);
             if (me) {
@@ -417,7 +733,7 @@
         });
 
         socket.on('gameOver', (data) => {
-            gameScreen.classList.add('hidden');
+            hideAllScreens();
             finalScreen.classList.remove('hidden');
 
             const winnersNames = data.winners.map(w => w.name).join(', ');
@@ -425,52 +741,268 @@
 
             const list = document.getElementById('final-players-list');
             list.innerHTML = '';
-            data.players.sort((a, b) => b.points - a.points).forEach(p => {
+            data.players.slice().sort((a, b) => b.points - a.points).forEach(p => {
                 const li = document.createElement('li');
-                li.innerHTML = `<span>${p.name}</span> <span><b>${p.points}</b> ⭐ (осталось ${p.coins} 🪙)</span>`;
+                if (p.playerId === myPlayerId) li.classList.add('me');
+                li.innerHTML = `<span class="pl-name">${p.name}</span> <span><b>${p.points}</b> ⭐ (осталось ${p.coins} 🪙)</span>`;
                 list.appendChild(li);
             });
 
-            // Показываем кнопку "Сыграть еще раз" ТОЛЬКО создателю (хосту)
-            if (data.hostPlayerId === myPlayerId) {
-                btnPlayAgain.classList.remove('hidden');
-            } else {
-                btnPlayAgain.classList.add('hidden');
-            }
+            btnPlayAgain.classList.toggle('hidden', data.hostPlayerId !== myPlayerId);
+            resetAbilityState();
         });
 
+        // ---------------- Отрисовка ----------------
         function enterLobby(code, room) {
-            authScreen.classList.add('hidden');
+            hideAllScreens();
             lobbyScreen.classList.remove('hidden');
             displayCode.innerText = code;
-            renderLobbyPlayers(room.players);
+            hostId = room.hostPlayerId;
+            currentMode = room.mode || 'normal';
+            renderModeBlock();
+            renderLobbyPlayers(room.players, room.hostPlayerId);
+            gameError.innerText = '';
+            resetAbilityState();
         }
 
-        function renderLobbyPlayers(players) {
+        function enterGameScreen() {
+            hideAllScreens();
+            gameScreen.classList.remove('hidden');
+            document.getElementById('bid-input').disabled = false;
+        }
+
+        function enterAbilityScreen(data) {
+            hideAllScreens();
+            abilityScreen.classList.remove('hidden');
+            resetAbilityState();
+
+            myAbilities = data.myAbilities || { active: [], passive: [] };
+            knownPlayers = data.players || [];
+
+            document.getElementById('ab-round').innerText = data.round;
+            document.getElementById('ab-max-rounds').innerText = data.maxRounds || 7;
+            document.getElementById('ab-timer').innerText = data.timeLeft;
+            currentMode = 'abilities';
+            renderMyAbilities();
+
+            abilityOptions = data.options || [];
+            renderAbilityCards();
+        }
+
+        function renderModeBlock() {
+            const isHost = hostId === myPlayerId;
+            if (isHost) {
+                modeSelect.classList.remove('hidden');
+                modeSelect.value = currentMode;
+                modeLabel.classList.add('hidden');
+                modeHint.innerText = MODE_HINTS[currentMode] || '';
+            } else {
+                modeSelect.classList.add('hidden');
+                modeLabel.classList.remove('hidden');
+                modeLabel.innerText = MODE_LABELS[currentMode] || MODE_LABELS.normal;
+                modeHint.innerText = MODE_HINTS[currentMode] || '';
+            }
+        }
+
+        function renderLobbyPlayers(players, hostPlayerId) {
             playersList.innerHTML = '';
             players.forEach(p => {
                 const li = document.createElement('li');
-                li.innerText = p.name + (p.playerId === myPlayerId ? ' (Ты)' : '');
+                if (p.playerId === myPlayerId) li.classList.add('me');
+
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'pl-name';
+                if (p.playerId === hostPlayerId) {
+                    const crown = document.createElement('span');
+                    crown.className = 'host-crown';
+                    crown.innerText = '👑';
+                    nameSpan.appendChild(crown);
+                }
+                nameSpan.appendChild(document.createTextNode(p.name));
+                li.appendChild(nameSpan);
+
+                const isHost = hostPlayerId === myPlayerId;
+                if (isHost && p.playerId !== myPlayerId) {
+                    const kick = document.createElement('button');
+                    kick.className = 'kick-btn';
+                    kick.innerText = '✕';
+                    kick.title = 'Исключить игрока';
+                    kick.addEventListener('click', () => {
+                        if (confirm(`Исключить игрока ${p.name}?`)) {
+                            socket.emit('kickPlayer', { playerId: p.playerId });
+                        }
+                    });
+                    li.appendChild(kick);
+                }
+
                 playersList.appendChild(li);
             });
         }
 
         function renderGamePlayers(players, showLastBid = false) {
             const list = document.getElementById('game-players-list');
+            knownPlayers = players || [];
             list.innerHTML = '';
-            players.forEach(p => {
+            knownPlayers.forEach(p => {
                 if (p.playerId === myPlayerId) return;
 
                 const li = document.createElement('li');
-                let statusText = p.hasBid ? `<span id="status-${p.playerId}" class="status-badge ready">Сделал ставку</span>` : `<span id="status-${p.playerId}" class="status-badge waiting">Думает...</span>`;
-                
+
+                let statusText = p.hasBid
+                    ? `<span id="status-${p.playerId}" class="status-badge ready">Сделал ставку</span>`
+                    : `<span id="status-${p.playerId}" class="status-badge waiting">Думает...</span>`;
+
                 if (showLastBid && p.lastBid !== undefined) {
                     statusText = `<span style="color:#ffca28;">Ставил: ${p.lastBid} 🪙</span>`;
                 }
 
-                li.innerHTML = `<span>${p.name} (${p.points} ⭐)</span> ${statusText}`;
+                let revealed = '';
+                if (revealedBids[p.playerId] !== undefined && !showLastBid) {
+                    revealed = `<div class="revealed-bid">👁 Ставка: ${revealedBids[p.playerId]} 🪙</div>`;
+                }
+
+                li.innerHTML = `<span>${p.name} (${p.points} ⭐)</span> <span style="text-align:right">${statusText}${revealed}</span>`;
                 list.appendChild(li);
             });
+        }
+
+        function renderRevealedBid() {
+            if (!knownPlayers.length) return;
+            renderGamePlayers(knownPlayers);
+        }
+
+        function setLot(lot, hidden) {
+            const lotEl = document.getElementById('current-lot');
+            const noteEl = document.getElementById('lot-note');
+            if (hidden) {
+                lotEl.innerText = '???';
+                noteEl.innerText = 'Слепота: очки скрыты 🔒';
+                noteEl.style.color = '#1a1a1a';
+            } else {
+                lotEl.innerText = lot;
+                noteEl.style.color = '';
+            }
+        }
+
+        function renderMyAbilities() {
+            const boxes = [
+                [document.getElementById('my-abilities-box'), document.getElementById('my-active-list'), document.getElementById('my-passive-list')],
+                [document.getElementById('my-abilities-box-2'), document.getElementById('my-active-list-2'), document.getElementById('my-passive-list-2')]
+            ];
+
+            const hasAny = myAbilities.active.length > 0 || myAbilities.passive.length > 0;
+
+            boxes.forEach(([box, activeList, passiveList]) => {
+                activeList.innerHTML = '';
+                passiveList.innerHTML = '';
+                if (!hasAny) {
+                    box.classList.add('hidden');
+                    return;
+                }
+                box.classList.remove('hidden');
+                myAbilities.active.forEach(a => {
+                    const chip = document.createElement('span');
+                    chip.className = 'chip active';
+                    chip.innerText = '⚡ ' + a.name + (a.targetName ? ' → ' + a.targetName : '');
+                    activeList.appendChild(chip);
+                });
+                myAbilities.passive.forEach(a => {
+                    const chip = document.createElement('span');
+                    chip.className = 'chip passive';
+                    chip.innerText = '🛡 ' + a.name;
+                    passiveList.appendChild(chip);
+                });
+            });
+        }
+
+        function renderAbilityCards() {
+            abCards.innerHTML = '';
+            abCards.classList.toggle('locked', abLocked);
+
+            abilityOptions.forEach(option => {
+                const card = document.createElement('div');
+                card.className = 'ability-card';
+                if (option.id === abSelectedId) card.classList.add('selected');
+
+                const title = document.createElement('div');
+                title.className = 'ac-title';
+                title.innerText = option.name;
+
+                const desc = document.createElement('div');
+                desc.className = 'ac-desc';
+                desc.innerText = option.desc;
+
+                const type = document.createElement('div');
+                type.className = 'ac-type';
+                type.innerText = option.target ? 'Нужна цель' : 'Без цели';
+
+                card.appendChild(title);
+                card.appendChild(desc);
+                card.appendChild(type);
+
+                card.addEventListener('click', () => onAbilityCardClick(option));
+
+                abCards.appendChild(card);
+            });
+        }
+
+        function onAbilityCardClick(option) {
+            if (abLocked) return;
+
+            if (abSelectedId === option.id) return; // уже выбрана — ждём цель или подтверждения
+
+            abSelectedId = option.id;
+            abTargetId = null;
+            renderAbilityCards();
+
+            if (option.target) {
+                renderTargetButtons();
+                abTargets.classList.remove('hidden');
+                abChosen.classList.add('hidden');
+            } else {
+                abTargets.classList.add('hidden');
+                confirmChoice();
+            }
+        }
+
+        function renderTargetButtons() {
+            abTargetList.innerHTML = '';
+
+            // Соперники из последнего известного состояния комнаты
+            const opponents = knownPlayers.filter(p => p.playerId !== myPlayerId);
+            if (!opponents.length) {
+                abTargetList.innerText = 'Нет других игроков в комнате';
+                return;
+            }
+
+            opponents.forEach(p => {
+                const btn = document.createElement('button');
+                btn.className = 'target-btn';
+                if (p.playerId === abTargetId) btn.classList.add('selected');
+                btn.innerText = p.name;
+                btn.addEventListener('click', () => {
+                    if (abLocked) return;
+                    abTargetId = p.playerId;
+                    renderTargetButtons();
+                    confirmChoice();
+                });
+                abTargetList.appendChild(btn);
+            });
+        }
+
+        function confirmChoice() {
+            const option = abilityOptions.find(o => o.id === abSelectedId);
+            if (!option) return;
+            if (option.target && !abTargetId) return;
+
+            abLocked = true;
+            renderAbilityCards();
+            abTargets.classList.add('hidden');
+
+            abChosen.classList.remove('hidden');
+            abChosen.innerText = '✅ Ты выбрал: ' + option.name;
+
+            socket.emit('chooseAbility', { abilityId: option.id, targetPlayerId: abTargetId });
         }
     </script>
 </body>
