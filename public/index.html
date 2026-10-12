@@ -182,6 +182,43 @@
         .chip.armed { background: #2b1f3d; color: #b39ddb; border: 1px solid #9575cd; }
         .ability-hint { font-size: 11px; color: #9e9e9e; margin-top: 2px; }
 
+        /* Раскрывающиеся описания способностей */
+        .ability-item { margin: 4px 0; text-align: left; }
+        .ability-item-head {
+            width: 100%;
+            margin: 0;
+            padding: 7px 10px;
+            font-size: 13px;
+            font-weight: bold;
+            border-radius: 8px;
+            background: #444;
+            color: #fff;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            text-align: left;
+        }
+        .ability-item-head.active { background: #4a3a12; color: #ffd54f; border: 1px solid #ffca28; }
+        .ability-item-head.passive { background: #1f3d2b; color: #7bd88f; border: 1px solid #4caf50; }
+        .ability-item-head.armed { background: #2b1f3d; color: #b39ddb; border: 1px solid #9575cd; }
+        .ability-item-head:hover { filter: brightness(1.15); }
+        .ability-item-head .chev { transition: transform 0.15s ease; margin-left: 8px; flex: 0 0 auto; }
+        .ability-item.open .ability-item-head .chev { transform: rotate(90deg); }
+        .ability-item-body {
+            background: #2f2f2f;
+            border: 1px solid #444;
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            padding: 8px 10px;
+            font-size: 12px;
+            color: #ddd;
+            line-height: 1.4;
+        }
+        .ability-item-desc { margin-bottom: 6px; }
+        .ability-item-body .tb-title { font-size: 12px; color: #bbb; margin: 6px 0 4px 0; }
+        .ability-item-body button { width: auto; margin: 4px 4px 0 0; padding: 6px 12px; font-size: 13px; }
+
         .ability-cards {
             display: flex;
             gap: 10px;
@@ -752,9 +789,12 @@
             timerDisplay.innerText = data.timeLeft;
 
             revealedBids = {};
-            document.getElementById('lot-note').innerText = data.note || '';
+            const noteText = [data.lotHidden ? 'Слепота: очки скрыты 🔒' : '', data.note || '']
+                .filter(Boolean).join(' | ');
+            document.getElementById('lot-note').innerText = noteText;
 
             myAbilities = data.myAbilities || { active: [], passive: [], armed: null, canActivate: false };
+            knownPlayers = data.players || knownPlayers;
             renderMyAbilities();
 
             const me = data.players.find(p => p.playerId === myPlayerId);
@@ -1012,32 +1052,29 @@
                 box.classList.remove('hidden');
 
                 if (armed) {
-                    const chip = document.createElement('span');
-                    chip.className = 'chip armed';
-                    chip.innerText = '✅ Активна: ' + armed.name + (armed.targetName ? ' → ' + armed.targetName : '');
-                    activeList.appendChild(chip);
+                    appendAbilityItem(activeList, {
+                        kind: 'armed',
+                        name: armed.name,
+                        desc: armed.desc,
+                        targetName: armed.targetName
+                    });
                 }
 
                 actives.forEach(a => {
-                    if (canActivate) {
-                        const btn = document.createElement('button');
-                        btn.className = 'chip active usable';
-                        btn.innerText = '⚡ ' + a.name;
-                        btn.title = a.desc;
-                        btn.addEventListener('click', () => openAbilityModal(a));
-                        activeList.appendChild(btn);
-                    } else {
-                        const chip = document.createElement('span');
-                        chip.className = 'chip active';
-                        chip.innerText = '⚡ ' + a.name;
-                        activeList.appendChild(chip);
-                    }
+                    appendAbilityItem(activeList, {
+                        kind: 'active',
+                        id: a.id,
+                        name: a.name,
+                        desc: a.desc,
+                        target: !!a.target,
+                        canActivate
+                    });
                 });
 
                 if (canActivate && actives.length) {
                     const hint = document.createElement('div');
                     hint.className = 'ability-hint';
-                    hint.innerText = 'Нажми на способность, чтобы активировать её в этом раунде (1 раз за игру).';
+                    hint.innerText = 'Нажми на способность, чтобы увидеть описание и активировать её (1 раз за игру).';
                     activeList.appendChild(hint);
                 } else if (myAbilities.frozen && actives.length) {
                     const hint = document.createElement('div');
@@ -1047,65 +1084,89 @@
                 }
 
                 passives.forEach(a => {
-                    const chip = document.createElement('span');
-                    chip.className = 'chip passive';
-                    chip.innerText = '🛡 ' + a.name;
-                    passiveList.appendChild(chip);
+                    appendAbilityItem(passiveList, {
+                        kind: 'passive',
+                        name: a.name,
+                        desc: a.desc
+                    });
                 });
             });
         }
 
-        // Описание способности + выбор цели при активации
-        function openAbilityModal(ability) {
-            const node = document.createElement('div');
+        // Строка способности с раскрывающимся описанием
+        function appendAbilityItem(container, opts) {
+            const item = document.createElement('div');
+            item.className = 'ability-item';
+
+            const head = document.createElement('button');
+            head.className = 'ability-item-head '
+                + (opts.kind === 'passive' ? 'passive' : opts.kind === 'armed' ? 'armed' : 'active');
+
+            const label = document.createElement('span');
+            const prefix = opts.kind === 'passive' ? '🛡 ' : opts.kind === 'armed' ? '✅ ' : '⚡ ';
+            label.innerText = prefix + opts.name + (opts.targetName ? ' → ' + opts.targetName : '');
+
+            const chev = document.createElement('span');
+            chev.className = 'chev';
+            chev.innerText = '▸';
+
+            head.appendChild(label);
+            head.appendChild(chev);
+
+            const body = document.createElement('div');
+            body.className = 'ability-item-body hidden';
 
             const desc = document.createElement('div');
-            desc.className = 'modal-desc';
-            desc.innerText = ability.desc;
-            node.appendChild(desc);
+            desc.className = 'ability-item-desc';
+            desc.innerText = opts.desc || '';
+            body.appendChild(desc);
 
-            const opponents = knownPlayers.filter(p => p.playerId !== myPlayerId);
+            if (opts.kind === 'active' && opts.canActivate) {
+                const opponents = knownPlayers.filter(p => p.playerId !== myPlayerId);
 
-            if (ability.target) {
-                const t = document.createElement('div');
-                t.className = 'tb-title';
-                t.innerText = 'Выбери соперника:';
-                node.appendChild(t);
+                if (opts.target) {
+                    const t = document.createElement('div');
+                    t.className = 'tb-title';
+                    t.innerText = 'Выбери соперника:';
+                    body.appendChild(t);
 
-                const list = document.createElement('div');
-                if (!opponents.length) {
-                    const none = document.createElement('div');
-                    none.className = 'small-note';
-                    none.innerText = 'Нет других игроков';
-                    list.appendChild(none);
-                }
-                opponents.forEach(op => {
-                    const b = document.createElement('button');
-                    b.className = 'target-btn';
-                    b.innerText = op.name;
-                    b.addEventListener('click', () => {
-                        closeModal();
-                        socket.emit('activateAbility', { abilityId: ability.id, targetPlayerId: op.playerId });
+                    const list = document.createElement('div');
+                    if (!opponents.length) {
+                        const none = document.createElement('div');
+                        none.className = 'small-note';
+                        none.innerText = 'Нет других игроков';
+                        list.appendChild(none);
+                    }
+                    opponents.forEach(op => {
+                        const b = document.createElement('button');
+                        b.className = 'target-btn';
+                        b.innerText = op.name;
+                        b.addEventListener('click', () => {
+                            socket.emit('activateAbility', { abilityId: opts.id, targetPlayerId: op.playerId });
+                        });
+                        list.appendChild(b);
                     });
-                    list.appendChild(b);
-                });
-                node.appendChild(list);
-            } else {
-                const confirmBtn = document.createElement('button');
-                confirmBtn.className = 'btn-confirm';
-                confirmBtn.innerText = '⚡ Активировать';
-                confirmBtn.addEventListener('click', () => {
-                    closeModal();
-                    socket.emit('activateAbility', { abilityId: ability.id, targetPlayerId: null });
-                });
-                node.appendChild(confirmBtn);
+                    body.appendChild(list);
+                } else {
+                    const b = document.createElement('button');
+                    b.className = 'btn-confirm';
+                    b.innerText = '⚡ Активировать';
+                    b.addEventListener('click', () => {
+                        socket.emit('activateAbility', { abilityId: opts.id, targetPlayerId: null });
+                    });
+                    body.appendChild(b);
+                }
             }
 
-            openModal({
-                title: ability.name,
-                bodyNode: node,
-                actions: [{ label: '✖', className: 'btn-cancel btn-icon', onClick: closeModal }]
+            head.addEventListener('click', () => {
+                const willOpen = body.classList.contains('hidden');
+                body.classList.toggle('hidden', !willOpen);
+                item.classList.toggle('open', willOpen);
             });
+
+            item.appendChild(head);
+            item.appendChild(body);
+            container.appendChild(item);
         }
 
         function renderAbilityCards() {

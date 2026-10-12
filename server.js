@@ -24,6 +24,7 @@ const MODES = {
 
 const ROUND_TIME = 30;          // длительность раунда (сек)
 const ABILITY_SELECT_TIME = 20; // длительность выбора способностей (сек)
+const ROUND_DELAY = parseInt(process.env.ROUND_DELAY || '5000', 10); // пауза между раундами (мс)
 const ABILITY_ROUNDS = [1, 3, 5]; // раунды, в которых выбираются способности
 
 // ---------------------------------------------------------------------------
@@ -38,7 +39,7 @@ const ACTIVE_ABILITIES = [
     { id: 'parimatch', name: 'Пари', desc: 'Выбери игрока: если он поставит меньше тебя — получишь +15 монет.', target: true },
     { id: 'rematch', name: 'Реванш', desc: 'Проиграл прошлый раунд — вернёшь 25% потерянных монет.', target: false },
     { id: 'trap', name: 'Ловушка', desc: 'Выбери игрока: если он поставит больше тебя — он потеряет 10 монет.', target: true },
-    { id: 'blind', name: 'Слепота', desc: 'Выбранный игрок не увидит, сколько очков разыгрывается в этом раунде.', target: true },
+    { id: 'blind', name: 'Слепота', desc: 'Выбранный игрок не увидит, сколько очков разыгрывается, в следующем раунде.', target: true },
     { id: 'diamond', name: 'Глаз-алмаз', desc: 'Ты увидишь ставку выбранного игрока в этом раунде.', target: true },
     { id: 'reduction', name: 'Сокращение', desc: 'Победитель этого раунда получит вдвое меньше очков.', target: false },
     { id: 'tax', name: 'Налог', desc: 'Все, кто поставил больше тебя, отдадут тебе по 5 монет.', target: false },
@@ -139,6 +140,7 @@ function createPlayer(socketId, playerId, name) {
         pendingChoice: null,
         abilityOptions: [],
         blind: false,
+        blindNext: false,
         eyeTarget: null,
         frozen: false,
         roundNote: '',
@@ -165,6 +167,7 @@ function resetPlayers(room) {
         p.pendingChoice = null;
         p.abilityOptions = [];
         p.blind = false;
+        p.blindNext = false;
         p.eyeTarget = null;
         p.frozen = false;
         p.roundNote = '';
@@ -635,10 +638,8 @@ io.on('connection', (socket) => {
             if (abilityId === 'blind' && target) {
                 const targetPlayer = getByPlayerId(room, target);
                 if (targetPlayer) {
-                    targetPlayer.blind = true;
-                    const ts = io.sockets.sockets.get(targetPlayer.id);
-                    if (ts) ts.emit('blinded', {});
-                    notifyAbilities(room, targetPlayer);
+                    // Слепота действует в следующем раунде — тогда игрок не увидит лот
+                    targetPlayer.blindNext = true;
                 }
             }
             if (abilityId === 'diamond' && target) {
@@ -807,6 +808,14 @@ function startNewRound(roomCode) {
         p.frozen = false;
         p.armedAbility = null;
         p.roundNote = '';
+    });
+
+    // Слепота, активированная в прошлом раунде, начинает действовать сейчас
+    room.players.forEach(p => {
+        if (p.blindNext) {
+            p.blind = true;
+            p.blindNext = false;
+        }
     });
 
     const abilityMode = room.mode === MODE_ABILITIES;
@@ -1084,7 +1093,7 @@ function evaluateRound(roomCode) {
         if (myActives.some(a => a.id === 'blind')) {
             const act = myActives.find(a => a.id === 'blind');
             const target = getByPlayerId(room, act.targetPlayerId);
-            if (target) addLog(target, 'Слепота: лот скрыт 🔒');
+            if (target) addLog(p, `Слепота: ${target.name} не увидит лот в следующем раунде 🔒`);
         }
         if (myActives.some(a => a.id === 'freeze')) {
             const act = myActives.find(a => a.id === 'freeze');
@@ -1153,7 +1162,7 @@ function evaluateRound(roomCode) {
                 hostPlayerId: currentRoom.hostPlayerId
             });
         }
-    }, 5000);
+    }, ROUND_DELAY);
 }
 
 const PORT = process.env.PORT || 3000;
