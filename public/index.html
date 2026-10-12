@@ -170,6 +170,18 @@
         .chip.active { background: #4a3a12; color: #ffd54f; border: 1px solid #ffca28; }
         .chip.passive { background: #1f3d2b; color: #7bd88f; border: 1px solid #4caf50; }
 
+        button.chip {
+            font-family: inherit;
+            cursor: default;
+            width: auto;
+            padding: 3px 9px;
+            margin: 3px 4px 3px 0;
+        }
+        button.chip.usable { cursor: pointer; }
+        button.chip.usable:hover { background: #5a4614; box-shadow: 0 0 10px rgba(255, 202, 40, 0.45); }
+        .chip.armed { background: #2b1f3d; color: #b39ddb; border: 1px solid #9575cd; }
+        .ability-hint { font-size: 11px; color: #9e9e9e; margin-top: 2px; }
+
         .ability-cards {
             display: flex;
             gap: 10px;
@@ -233,6 +245,45 @@
 
         .bid-line { font-size: 13px; color: #bbb; margin-top: 6px; }
         .revealed-bid { color: #7bd88f; font-size: 12px; }
+
+        /* --- Модальное окно --- */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.65);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+        .modal {
+            background: #2a2a2a;
+            border: 1px solid #555;
+            border-radius: 12px;
+            padding: 18px;
+            width: 90%;
+            max-width: 380px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+            text-align: center;
+        }
+        .modal-title { color: #ffca28; font-weight: bold; font-size: 18px; margin-bottom: 10px; }
+        .modal-body { color: #ddd; font-size: 14px; margin-bottom: 14px; }
+        .modal-desc {
+            background: #333;
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 12px;
+            line-height: 1.4;
+            text-align: left;
+        }
+        .modal-actions { display: flex; gap: 10px; justify-content: center; }
+        .modal-actions button { width: auto; min-width: 64px; margin: 0; }
+        .btn-icon { font-size: 20px; font-weight: bold; padding: 8px 18px; }
+        .btn-confirm { background: #4caf50; color: #fff; }
+        .btn-confirm:hover { background: #43a047; }
+        .btn-cancel { background: #e53935; color: #fff; }
+        .btn-cancel:hover { background: #c62828; }
     </style>
     <script src="/socket.io/socket.io.js"></script>
 </head>
@@ -263,7 +314,6 @@
                     <option value="abilities">Со способностями</option>
                 </select>
                 <div id="mode-label" class="mode-current">Обычный</div>
-                <div id="mode-hint" class="small-note"></div>
             </div>
 
             <p>Игроки в комнате:</p>
@@ -275,7 +325,7 @@
 
         <!-- ЭКРАН 3: Игровое поле -->
         <div id="game-screen" class="hidden">
-            <div class="timer-box">⏳ Осталось: <span id="timer-display">20</span> сек</div>
+            <div class="timer-box">⏳ Осталось: <span id="timer-display">30</span> сек</div>
 
             <div>Раунд <span id="current-round">1</span> из <span id="max-rounds">5</span></div>
 
@@ -328,9 +378,9 @@
             <h2>Раунд <span id="ab-round">1</span> из <span id="ab-max-rounds">7</span></h2>
             <h3 style="color: #ffca28;">🎁 Выбор способности</h3>
 
-            <div class="timer-box">⏳ Выбор: <span id="ab-timer">10</span> сек</div>
+            <div class="timer-box">⏳ Выбор: <span id="ab-timer">20</span> сек</div>
 
-            <div class="small-note">Время раунда не идёт, пока идёт выбор. Активную способность можно применить только один раз за игру.</div>
+            <div class="small-note">Время раунда не идёт, пока идёт выбор. Активную способность можно активировать один раз за игру — во время любого раунда, начиная с текущего.</div>
 
             <div id="my-abilities-box-2" class="abilities-box hidden">
                 <div class="ab-head">Уже выбранные способности</div>
@@ -339,11 +389,6 @@
             </div>
 
             <div id="ab-cards" class="ability-cards"></div>
-
-            <div id="ab-targets" class="target-box hidden">
-                <div class="tb-title">Выбери соперника:</div>
-                <div id="ab-target-list"></div>
-            </div>
 
             <div id="ab-chosen" class="chosen-line hidden"></div>
 
@@ -360,6 +405,15 @@
             <ul id="final-players-list" class="player-list"></ul>
             <button id="btn-play-again" class="hidden">Сыграть еще раз</button>
             <button id="btn-exit-to-menu" class="btn-secondary">Выйти в меню</button>
+        </div>
+    </div>
+
+    <!-- Модальное окно (подтверждение кика, описание способности) -->
+    <div id="modal-overlay" class="modal-overlay hidden">
+        <div class="modal">
+            <div id="modal-title" class="modal-title"></div>
+            <div id="modal-body" class="modal-body"></div>
+            <div id="modal-actions" class="modal-actions"></div>
         </div>
     </div>
 
@@ -393,31 +447,27 @@
         const btnPlayAgain = document.getElementById('btn-play-again');
         const modeSelect = document.getElementById('mode-select');
         const modeLabel = document.getElementById('mode-label');
-        const modeHint = document.getElementById('mode-hint');
         const bidInput = document.getElementById('bid-input');
         const bidSection = document.getElementById('bid-section');
         const bidStatusMsg = document.getElementById('bid-status-msg');
         const gameError = document.getElementById('game-error');
         const abCards = document.getElementById('ab-cards');
-        const abTargets = document.getElementById('ab-targets');
-        const abTargetList = document.getElementById('ab-target-list');
         const abChosen = document.getElementById('ab-chosen');
+        const modalOverlay = document.getElementById('modal-overlay');
+        const modalTitle = document.getElementById('modal-title');
+        const modalBody = document.getElementById('modal-body');
+        const modalActions = document.getElementById('modal-actions');
 
         const MODE_LABELS = { normal: 'Обычный', abilities: 'Со способностями' };
-        const MODE_HINTS = {
-            normal: '5 раундов, без способностей',
-            abilities: '7 раундов, выбор способностей в 1, 3 и 5 раундах'
-        };
 
         let myCoins = 100;
         let hostId = null;
         let currentMode = 'normal';
         let abilityOptions = [];
         let abSelectedId = null;
-        let abTargetId = null;
         let abLocked = false;
         let revealedBids = {};
-        let myAbilities = { active: [], passive: [] };
+        let myAbilities = { active: [], passive: [], armed: null, canActivate: false };
         let knownPlayers = [];
 
         socket.on('connect', () => {
@@ -453,16 +503,39 @@
         function resetAbilityState() {
             abilityOptions = [];
             abSelectedId = null;
-            abTargetId = null;
             abLocked = false;
             revealedBids = {};
-            myAbilities = { active: [], passive: [] };
+            myAbilities = { active: [], passive: [], armed: null, canActivate: false };
             abCards.innerHTML = '';
-            abTargets.classList.add('hidden');
-            abTargetList.innerHTML = '';
             abChosen.classList.add('hidden');
             abChosen.innerText = '';
         }
+
+        // ---------------- Модальное окно ----------------
+        function openModal({ title, bodyNode, bodyHtml, actions }) {
+            modalTitle.innerText = title || '';
+            modalBody.innerHTML = '';
+            if (bodyNode) modalBody.appendChild(bodyNode);
+            else if (bodyHtml) modalBody.innerHTML = bodyHtml;
+
+            modalActions.innerHTML = '';
+            (actions || []).forEach(a => {
+                const b = document.createElement('button');
+                b.className = a.className || '';
+                b.innerText = a.label;
+                b.addEventListener('click', () => { if (a.onClick) a.onClick(); });
+                modalActions.appendChild(b);
+            });
+            modalOverlay.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            modalOverlay.classList.add('hidden');
+        }
+
+        modalOverlay.addEventListener('click', (e) => {
+            if (e.target === modalOverlay) closeModal();
+        });
 
         // ---------------- Меню ----------------
         document.getElementById('btn-create').addEventListener('click', () => {
@@ -582,7 +655,7 @@
                     'Режим: ' + (MODE_LABELS[data.mode] || MODE_LABELS.normal);
                 setLot(data.currentLot, !!data.blind);
                 timerDisplay.innerText = data.timeLeft;
-                myAbilities = data.myAbilities || { active: [], passive: [] };
+                myAbilities = data.myAbilities || { active: [], passive: [], armed: null, canActivate: false };
                 renderMyAbilities();
 
                 const me = data.room.players.find(p => p.playerId === myPlayerId);
@@ -627,6 +700,7 @@
             errorMsg.innerText = msg;
             document.getElementById('lobby-error').innerText = msg;
             gameError.innerText = msg;
+            gameError.style.color = '#f44336';
         });
 
         socket.on('timerUpdate', (timeLeft) => {
@@ -642,11 +716,33 @@
             document.getElementById('ab-timer').innerText = timeLeft;
         });
 
+        // Обновление списка способностей игрока (после активации и т.п.)
+        socket.on('abilitiesUpdated', ({ myAbilities: updated }) => {
+            if (updated) myAbilities = updated;
+            renderMyAbilities();
+        });
+
+        socket.on('abilityActivated', ({ name, targetName }) => {
+            gameError.innerText = '⚡ ' + name + ' активирована' + (targetName ? ' → ' + targetName : '') + '!';
+            gameError.style.color = '#4caf50';
+        });
+
+        socket.on('abilityBlocked', ({ reason }) => {
+            gameError.innerText = '❄ ' + (reason || 'Способность заблокирована');
+            gameError.style.color = '#f44336';
+        });
+
+        socket.on('blinded', () => {
+            setLot(null, true);
+            document.getElementById('lot-note').innerText = 'Слепота: очки скрыты 🔒';
+        });
+
         // --- Раунд ---
         socket.on('newRoundStarted', (data) => {
             enterGameScreen();
             document.getElementById('round-result').classList.add('hidden');
             gameError.innerText = '';
+            gameError.style.color = '';
 
             document.getElementById('current-round').innerText = data.round;
             document.getElementById('max-rounds').innerText = data.maxRounds;
@@ -658,7 +754,7 @@
             revealedBids = {};
             document.getElementById('lot-note').innerText = data.note || '';
 
-            myAbilities = data.myAbilities || { active: [], passive: [] };
+            myAbilities = data.myAbilities || { active: [], passive: [], armed: null, canActivate: false };
             renderMyAbilities();
 
             const me = data.players.find(p => p.playerId === myPlayerId);
@@ -720,7 +816,7 @@
                 logList.appendChild(li);
             });
 
-            myAbilities = data.myAbilities || { active: [], passive: [] };
+            myAbilities = data.myAbilities || { active: [], passive: [], armed: null, canActivate: false };
             renderMyAbilities();
 
             const me = data.players.find(p => p.playerId === myPlayerId);
@@ -776,7 +872,7 @@
             abilityScreen.classList.remove('hidden');
             resetAbilityState();
 
-            myAbilities = data.myAbilities || { active: [], passive: [] };
+            myAbilities = data.myAbilities || { active: [], passive: [], armed: null, canActivate: false };
             knownPlayers = data.players || [];
 
             document.getElementById('ab-round').innerText = data.round;
@@ -795,12 +891,10 @@
                 modeSelect.classList.remove('hidden');
                 modeSelect.value = currentMode;
                 modeLabel.classList.add('hidden');
-                modeHint.innerText = MODE_HINTS[currentMode] || '';
             } else {
                 modeSelect.classList.add('hidden');
                 modeLabel.classList.remove('hidden');
                 modeLabel.innerText = MODE_LABELS[currentMode] || MODE_LABELS.normal;
-                modeHint.innerText = MODE_HINTS[currentMode] || '';
             }
         }
 
@@ -828,9 +922,21 @@
                     kick.innerText = '✕';
                     kick.title = 'Исключить игрока';
                     kick.addEventListener('click', () => {
-                        if (confirm(`Исключить игрока ${p.name}?`)) {
-                            socket.emit('kickPlayer', { playerId: p.playerId });
-                        }
+                        openModal({
+                            title: 'Кикнуть игрока?',
+                            bodyHtml: `<b style="color:#ffca28;">${p.name}</b>`,
+                            actions: [
+                                {
+                                    label: '✔',
+                                    className: 'btn-confirm btn-icon',
+                                    onClick: () => {
+                                        closeModal();
+                                        socket.emit('kickPlayer', { playerId: p.playerId });
+                                    }
+                                },
+                                { label: '✖', className: 'btn-cancel btn-icon', onClick: closeModal }
+                            ]
+                        });
                     });
                     li.appendChild(kick);
                 }
@@ -890,7 +996,11 @@
                 [document.getElementById('my-abilities-box-2'), document.getElementById('my-active-list-2'), document.getElementById('my-passive-list-2')]
             ];
 
-            const hasAny = myAbilities.active.length > 0 || myAbilities.passive.length > 0;
+            const actives = myAbilities.active || [];
+            const passives = myAbilities.passive || [];
+            const armed = myAbilities.armed;
+            const canActivate = !!myAbilities.canActivate;
+            const hasAny = actives.length > 0 || passives.length > 0 || !!armed;
 
             boxes.forEach(([box, activeList, passiveList]) => {
                 activeList.innerHTML = '';
@@ -900,18 +1010,101 @@
                     return;
                 }
                 box.classList.remove('hidden');
-                myAbilities.active.forEach(a => {
+
+                if (armed) {
                     const chip = document.createElement('span');
-                    chip.className = 'chip active';
-                    chip.innerText = '⚡ ' + a.name + (a.targetName ? ' → ' + a.targetName : '');
+                    chip.className = 'chip armed';
+                    chip.innerText = '✅ Активна: ' + armed.name + (armed.targetName ? ' → ' + armed.targetName : '');
                     activeList.appendChild(chip);
+                }
+
+                actives.forEach(a => {
+                    if (canActivate) {
+                        const btn = document.createElement('button');
+                        btn.className = 'chip active usable';
+                        btn.innerText = '⚡ ' + a.name;
+                        btn.title = a.desc;
+                        btn.addEventListener('click', () => openAbilityModal(a));
+                        activeList.appendChild(btn);
+                    } else {
+                        const chip = document.createElement('span');
+                        chip.className = 'chip active';
+                        chip.innerText = '⚡ ' + a.name;
+                        activeList.appendChild(chip);
+                    }
                 });
-                myAbilities.passive.forEach(a => {
+
+                if (canActivate && actives.length) {
+                    const hint = document.createElement('div');
+                    hint.className = 'ability-hint';
+                    hint.innerText = 'Нажми на способность, чтобы активировать её в этом раунде (1 раз за игру).';
+                    activeList.appendChild(hint);
+                } else if (myAbilities.frozen && actives.length) {
+                    const hint = document.createElement('div');
+                    hint.className = 'ability-hint';
+                    hint.innerText = '❄ Ты заморожен — способности недоступны в этом раунде.';
+                    activeList.appendChild(hint);
+                }
+
+                passives.forEach(a => {
                     const chip = document.createElement('span');
                     chip.className = 'chip passive';
                     chip.innerText = '🛡 ' + a.name;
                     passiveList.appendChild(chip);
                 });
+            });
+        }
+
+        // Описание способности + выбор цели при активации
+        function openAbilityModal(ability) {
+            const node = document.createElement('div');
+
+            const desc = document.createElement('div');
+            desc.className = 'modal-desc';
+            desc.innerText = ability.desc;
+            node.appendChild(desc);
+
+            const opponents = knownPlayers.filter(p => p.playerId !== myPlayerId);
+
+            if (ability.target) {
+                const t = document.createElement('div');
+                t.className = 'tb-title';
+                t.innerText = 'Выбери соперника:';
+                node.appendChild(t);
+
+                const list = document.createElement('div');
+                if (!opponents.length) {
+                    const none = document.createElement('div');
+                    none.className = 'small-note';
+                    none.innerText = 'Нет других игроков';
+                    list.appendChild(none);
+                }
+                opponents.forEach(op => {
+                    const b = document.createElement('button');
+                    b.className = 'target-btn';
+                    b.innerText = op.name;
+                    b.addEventListener('click', () => {
+                        closeModal();
+                        socket.emit('activateAbility', { abilityId: ability.id, targetPlayerId: op.playerId });
+                    });
+                    list.appendChild(b);
+                });
+                node.appendChild(list);
+            } else {
+                const confirmBtn = document.createElement('button');
+                confirmBtn.className = 'btn-confirm';
+                confirmBtn.innerText = '⚡ Активировать';
+                confirmBtn.addEventListener('click', () => {
+                    closeModal();
+                    socket.emit('activateAbility', { abilityId: ability.id, targetPlayerId: null });
+                });
+                node.appendChild(confirmBtn);
+            }
+
+            openModal({
+                title: ability.name,
+                bodyNode: node,
+                actions: [{ label: '✖', className: 'btn-cancel btn-icon', onClick: closeModal }]
             });
         }
 
@@ -948,61 +1141,22 @@
 
         function onAbilityCardClick(option) {
             if (abLocked) return;
-
-            if (abSelectedId === option.id) return; // уже выбрана — ждём цель или подтверждения
-
             abSelectedId = option.id;
-            abTargetId = null;
             renderAbilityCards();
-
-            if (option.target) {
-                renderTargetButtons();
-                abTargets.classList.remove('hidden');
-                abChosen.classList.add('hidden');
-            } else {
-                abTargets.classList.add('hidden');
-                confirmChoice();
-            }
-        }
-
-        function renderTargetButtons() {
-            abTargetList.innerHTML = '';
-
-            // Соперники из последнего известного состояния комнаты
-            const opponents = knownPlayers.filter(p => p.playerId !== myPlayerId);
-            if (!opponents.length) {
-                abTargetList.innerText = 'Нет других игроков в комнате';
-                return;
-            }
-
-            opponents.forEach(p => {
-                const btn = document.createElement('button');
-                btn.className = 'target-btn';
-                if (p.playerId === abTargetId) btn.classList.add('selected');
-                btn.innerText = p.name;
-                btn.addEventListener('click', () => {
-                    if (abLocked) return;
-                    abTargetId = p.playerId;
-                    renderTargetButtons();
-                    confirmChoice();
-                });
-                abTargetList.appendChild(btn);
-            });
+            confirmChoice();
         }
 
         function confirmChoice() {
             const option = abilityOptions.find(o => o.id === abSelectedId);
             if (!option) return;
-            if (option.target && !abTargetId) return;
 
             abLocked = true;
             renderAbilityCards();
-            abTargets.classList.add('hidden');
 
             abChosen.classList.remove('hidden');
             abChosen.innerText = '✅ Ты выбрал: ' + option.name;
 
-            socket.emit('chooseAbility', { abilityId: option.id, targetPlayerId: abTargetId });
+            socket.emit('chooseAbility', { abilityId: option.id });
         }
     </script>
 </body>

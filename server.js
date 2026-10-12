@@ -22,8 +22,8 @@ const MODES = {
     [MODE_ABILITIES]: { key: MODE_ABILITIES, label: 'Со способностями', maxRounds: 7 }
 };
 
-const ROUND_TIME = 20;          // длительность раунда (сек)
-const ABILITY_SELECT_TIME = 10; // длительность выбора способностей (сек)
+const ROUND_TIME = 30;          // длительность раунда (сек)
+const ABILITY_SELECT_TIME = 20; // длительность выбора способностей (сек)
 const ABILITY_ROUNDS = [1, 3, 5]; // раунды, в которых выбираются способности
 
 // ---------------------------------------------------------------------------
@@ -133,6 +133,8 @@ function createPlayer(socketId, playerId, name) {
         currentBid: null,
         hasBid: false,
         activeAbilities: [],
+        armedAbility: null,
+        usedActiveAbilities: [],
         passiveAbilities: [],
         pendingChoice: null,
         abilityOptions: [],
@@ -157,6 +159,8 @@ function resetPlayers(room) {
         p.currentBid = null;
         p.hasBid = false;
         p.activeAbilities = [];
+        p.armedAbility = null;
+        p.usedActiveAbilities = [];
         p.passiveAbilities = [];
         p.pendingChoice = null;
         p.abilityOptions = [];
@@ -198,17 +202,27 @@ function getCleanRoom(room) {
 }
 
 function abilitiesPayload(room, player) {
-    if (!player || room.mode !== MODE_ABILITIES) return { active: [], passive: [] };
+    if (!player || room.mode !== MODE_ABILITIES) return { active: [], passive: [], armed: null, canActivate: false };
+    const armedDef = player.armedAbility ? ABILITY_BY_ID[player.armedAbility.id] : null;
+    const armedTarget = player.armedAbility ? getByPlayerId(room, player.armedAbility.targetPlayerId) : null;
     return {
         active: player.activeAbilities.map(a => {
             const def = ABILITY_BY_ID[a.id];
-            const target = getByPlayerId(room, a.targetPlayerId);
-            return { id: a.id, name: def.name, desc: def.desc, target: !!def.target, targetName: target ? target.name : null };
+            return { id: a.id, name: def.name, desc: def.desc, target: !!def.target };
         }),
         passive: player.passiveAbilities.map(a => {
             const def = ABILITY_BY_ID[a.id];
             return { id: a.id, name: def.name, desc: def.desc };
-        })
+        }),
+        armed: player.armedAbility && armedDef ? {
+            id: player.armedAbility.id,
+            name: armedDef.name,
+            desc: armedDef.desc,
+            target: !!armedDef.target,
+            targetName: armedTarget ? armedTarget.name : null
+        } : null,
+        canActivate: room.gameState === 'playing' && !player.frozen && !player.armedAbility,
+        frozen: !!player.frozen
     };
 }
 
@@ -218,6 +232,12 @@ function emitPersonalized(room, event, build) {
         const sock = io.sockets.sockets.get(p.id);
         if (sock) sock.emit(event, build(p));
     });
+}
+
+// Обновить приватный список способностей конкретного игрока
+function notifyAbilities(room, player) {
+    const sock = io.sockets.sockets.get(player.id);
+    if (sock) sock.emit('abilitiesUpdated', { myAbilities: abilitiesPayload(room, player) });
 }
 
 function addCoins(p, amount) {
@@ -394,6 +414,13 @@ io.on('connection', (socket) => {
                 clearRoomTimers(room);
                 evaluateRound(room.roomId);
             }
+
+            // Если идёт выбор способностей и все оставшиеся выбрали — начинаем раунд
+            if (room.gameState === 'abilitySelect' && room.players.length
+                && room.players.every(p => p.pendingChoice)) {
+                clearRoomTimers(room);
+                finishAbilitySelection(room.roomId);
+            }
         } catch (err) {
             console.error('Error in kickPlayer:', err);
         }
@@ -466,6 +493,13 @@ io.on('connection', (socket) => {
                     room.hostPlayerId = room.players[0].playerId;
                 }
                 io.to(code).emit('updatePlayers', getCleanRoom(room));
+
+                // Если идёт выбор способностей и все оставшиеся выбрали — начинаем раунд
+                if (room.gameState === 'abilitySelect' && room.players.length
+                    && room.players.every(p => p.pendingChoice)) {
+                    clearRoomTimers(room);
+                    finishAbilitySelection(code);
+                }
             }
 
             socket.emit('leftRoomSuccess');
@@ -521,7 +555,7 @@ io.on('connection', (socket) => {
     });
 
     // Выбор способности (режим "Со способностями")
-    socket.on('chooseAbility', ({ abilityId, targetPlayerId }) => {
+    socket.on('chooseAbility', ({ abilityId }) => {
         try {
             const found = findPlayerRoom(socket.id);
             if (!found) return;
@@ -533,16 +567,8 @@ io.on('connection', (socket) => {
             const option = player.abilityOptions.find(o => o.id === abilityId);
             if (!option) return;
 
-            let target = null;
-            if (option.target) {
-                const targetPlayer = getByPlayerId(room, targetPlayerId);
-                if (!targetPlayer || targetPlayer.playerId === player.playerId) {
-                    return socket.emit('errorMsg', 'Выбери соперника!');
-                }
-                target = targetPlayer.playerId;
-            }
-
-            player.pendingChoice = { abilityId, targetPlayerId: target };
+            // Цель активной способности выбирается позже — при активации в раунде
+            player.pendingChoice = { abilityId, targetPlayerId: null };
 
             if (room.players.every(p => p.pendingChoice)) {
                 clearRoomTimers(room);
@@ -550,6 +576,83 @@ io.on('connection', (socket) => {
             }
         } catch (err) {
             console.error('Error in chooseAbility:', err);
+        }
+    });
+
+    // Активация активной способности во время раунда
+    socket.on('activateAbility', ({ abilityId, targetPlayerId }) => {
+        try {
+            const found = findPlayerRoom(socket.id);
+            if (!found) return;
+
+            const { code, room, player } = found;
+            if (room.mode !== MODE_ABILITIES) return;
+            if (room.gameState !== 'playing') {
+                return socket.emit('errorMsg', 'Способность можно активировать только во время раунда!');
+            }
+            if (player.frozen) {
+                return socket.emit('errorMsg', 'Твои способности заморожены в этом раунде!');
+            }
+            if (player.armedAbility) {
+                return socket.emit('errorMsg', 'Способность уже активирована в этом раунде!');
+            }
+
+            const idx = player.activeAbilities.findIndex(a => a.id === abilityId);
+            if (idx === -1) return;
+            const def = ABILITY_BY_ID[abilityId];
+            if (!def) return;
+
+            let target = null;
+            if (def.target) {
+                const targetPlayer = getByPlayerId(room, targetPlayerId);
+                if (!targetPlayer || targetPlayer.playerId === player.playerId) {
+                    return socket.emit('errorMsg', 'Выбери соперника!');
+                }
+                target = targetPlayer.playerId;
+            }
+
+            // Забираем способность из инвентаря и активируем
+            player.activeAbilities.splice(idx, 1);
+            player.usedActiveAbilities = player.usedActiveAbilities || [];
+            if (!player.usedActiveAbilities.includes(abilityId)) player.usedActiveAbilities.push(abilityId);
+            player.armedAbility = { id: abilityId, targetPlayerId: target };
+
+            // Способности с немедленным эффектом
+            if (abilityId === 'freeze' && target) {
+                const targetPlayer = getByPlayerId(room, target);
+                if (targetPlayer) {
+                    targetPlayer.frozen = true;
+                    // Снимаем уже активированную способность цели и возвращаем её в инвентарь
+                    if (targetPlayer.armedAbility) {
+                        targetPlayer.activeAbilities.push({ id: targetPlayer.armedAbility.id, round: room.currentRound });
+                        targetPlayer.armedAbility = null;
+                        const ts = io.sockets.sockets.get(targetPlayer.id);
+                        if (ts) ts.emit('abilityBlocked', { reason: 'Тебя заморозили — способность возвращена' });
+                    }
+                    notifyAbilities(room, targetPlayer);
+                }
+            }
+            if (abilityId === 'blind' && target) {
+                const targetPlayer = getByPlayerId(room, target);
+                if (targetPlayer) {
+                    targetPlayer.blind = true;
+                    const ts = io.sockets.sockets.get(targetPlayer.id);
+                    if (ts) ts.emit('blinded', {});
+                    notifyAbilities(room, targetPlayer);
+                }
+            }
+            if (abilityId === 'diamond' && target) {
+                const targetPlayer = getByPlayerId(room, target);
+                player.eyeTarget = target;
+                if (targetPlayer && targetPlayer.hasBid) {
+                    socket.emit('bidRevealed', { playerId: targetPlayer.playerId, bid: targetPlayer.currentBid || 0 });
+                }
+            }
+
+            notifyAbilities(room, player);
+            socket.emit('abilityActivated', { id: abilityId, name: def.name, targetName: target ? (getByPlayerId(room, target) || {}).name : null });
+        } catch (err) {
+            console.error('Error in activateAbility:', err);
         }
     });
 
@@ -581,7 +684,9 @@ function rollAbilityOptions(room, player) {
     }
 
     const owned = new Set(
-        player.passiveAbilities.map(a => a.id).concat(player.activeAbilities.map(a => a.id))
+        player.passiveAbilities.map(a => a.id)
+            .concat(player.activeAbilities.map(a => a.id))
+            .concat(player.usedActiveAbilities || [])
     );
     const available = pool.filter(a => !owned.has(a.id));
     const source = available.length >= 3 ? available : pool;
@@ -655,21 +760,13 @@ function finishAbilitySelection(roomCode) {
 
     clearRoomTimers(room);
 
-    const otherIds = room.players.map(p => p.playerId);
-
     room.players.forEach(p => {
         let choice = p.pendingChoice;
 
         // Не успел выбрать — выбираем случайную из предложенных
         if (!choice && p.abilityOptions && p.abilityOptions.length) {
             const option = p.abilityOptions[Math.floor(Math.random() * p.abilityOptions.length)];
-            const targets = otherIds.filter(id => id !== p.playerId);
-            choice = {
-                abilityId: option.id,
-                targetPlayerId: option.target && targets.length
-                    ? targets[Math.floor(Math.random() * targets.length)]
-                    : null
-            };
+            choice = { abilityId: option.id, targetPlayerId: null };
         }
 
         p.pendingChoice = null;
@@ -680,7 +777,7 @@ function finishAbilitySelection(roomCode) {
         if (!def) return;
 
         if (def.type === 'active') {
-            p.activeAbilities.push({ id: choice.abilityId, targetPlayerId: choice.targetPlayerId, round: room.currentRound });
+            p.activeAbilities.push({ id: choice.abilityId, round: room.currentRound });
         } else {
             p.passiveAbilities.push({ id: choice.abilityId, round: room.currentRound });
         }
@@ -689,31 +786,8 @@ function finishAbilitySelection(roomCode) {
     startNewRound(roomCode);
 }
 
-// Активные способности, действующие в начале раунда
-function resolveRoundStartAbilities(room) {
-    const frozenSet = new Set();
-
-    room.players.forEach(p => {
-        if (p.frozen) return;
-        p.activeAbilities.forEach(a => {
-            if (a.id === 'freeze' && a.targetPlayerId) frozenSet.add(a.targetPlayerId);
-        });
-    });
-
-    room.players.forEach(p => {
-        if (frozenSet.has(p.playerId)) p.frozen = true;
-    });
-
-    room.players.forEach(p => {
-        if (p.frozen) return;
-        p.activeAbilities.forEach(a => {
-            const target = getByPlayerId(room, a.targetPlayerId);
-            if (!target) return;
-            if (a.id === 'blind') target.blind = true;
-            if (a.id === 'diamond') p.eyeTarget = target.playerId;
-        });
-    });
-}
+// Активные способности активируются игроком вручную во время раунда
+// (см. обработчик socket.on('activateAbility')).
 
 function startNewRound(roomCode) {
     const room = rooms[roomCode];
@@ -731,14 +805,13 @@ function startNewRound(roomCode) {
         p.blind = false;
         p.eyeTarget = null;
         p.frozen = false;
+        p.armedAbility = null;
         p.roundNote = '';
     });
 
     const abilityMode = room.mode === MODE_ABILITIES;
 
     if (abilityMode) {
-        resolveRoundStartAbilities(room);
-
         // Пассивные способности, срабатывающие в начале раунда
         room.players.forEach(p => {
             if (p.frozen) return;
@@ -809,7 +882,7 @@ function evaluateRound(roomCode) {
 
     const isFrozen = p => abilityMode && p.frozen;
     const hasPassive = (p, id) => abilityMode && !isFrozen(p) && p.passiveAbilities.some(a => a.id === id);
-    const activesOf = p => (abilityMode && !isFrozen(p)) ? p.activeAbilities : [];
+    const activesOf = p => (abilityMode && !isFrozen(p) && p.armedAbility) ? [p.armedAbility] : [];
 
     const logs = {};
     const addLog = (p, text) => {
@@ -1028,9 +1101,9 @@ function evaluateRound(roomCode) {
         lastBid: x.currentBid || 0
     }));
 
-    // Активные способности одноразовые — сбрасываем
+    // Активированные активные способности одноразовые — сбрасываем (инвентарь сохраняется)
     players.forEach(p => {
-        p.activeAbilities = [];
+        p.armedAbility = null;
         p.lastBid = p.currentBid || 0;
         p.currentBid = null;
         p.hasBid = false;
