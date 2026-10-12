@@ -33,7 +33,7 @@ const ABILITY_ROUNDS = [1, 3, 5]; // раунды, в которых выбир�
 const ACTIVE_ABILITIES = [
     { id: 'shield', name: 'Щит', desc: 'Проиграешь раунд — вернёшь 50% своей ставки.', target: false },
     { id: 'steal', name: 'Кража', desc: 'Победишь раунд — заберёшь 10 монет у случайного соперника.', target: false },
-    { id: 'freeze', name: 'Заморозка', desc: 'Выбранный игрок не сможет использовать свои способности в этом раунде.', target: true },
+    { id: 'freeze', name: 'Заморозка', desc: 'Выбранный игрок не сможет использовать свои способности (активные и пассивные) в этом раунде.', target: true },
     { id: 'sabotage', name: 'Саботаж', desc: 'Выбранный игрок потеряет 10 монет в любом случае.', target: true },
     { id: 'double_reward', name: 'Двойная награда', desc: 'Победа в раунде принесёт вдвое больше очков.', target: false },
     { id: 'parimatch', name: 'Пари', desc: 'Выбери игрока: если он поставит меньше тебя — получишь +15 монет.', target: true },
@@ -41,7 +41,7 @@ const ACTIVE_ABILITIES = [
     { id: 'trap', name: 'Ловушка', desc: 'Выбери игрока: если он поставит больше тебя — он потеряет 10 монет.', target: true },
     { id: 'blind', name: 'Слепота', desc: 'Выбранный игрок не увидит, сколько очков разыгрывается, в следующем раунде.', target: true },
     { id: 'diamond', name: 'Глаз-алмаз', desc: 'Ты увидишь ставку выбранного игрока в этом раунде.', target: true },
-    { id: 'reduction', name: 'Сокращение', desc: 'Победитель этого раунда получит вдвое меньше очков.', target: false },
+    { id: 'reduction', name: 'Сокращение', desc: 'Кто бы ни победил в этом раунде, получит вдвое меньше очков.', target: false },
     { id: 'tax', name: 'Налог', desc: 'Все, кто поставил больше тебя, отдадут тебе по 5 монет.', target: false },
     { id: 'small_win', name: 'Маленькая победа', desc: 'Лот на 10 или 15 очков: победа приносит двойные очки.', target: false }
 ];
@@ -930,11 +930,14 @@ function evaluateRound(roomCode) {
 
     // Очки победителям
     const baseShare = winners.length > 0 ? Math.floor(lot / winners.length) : 0;
+    // Сокращение уменьшает очки победителя вдвое, независимо от того, кто активировал
+    const reductionActive = abilityMode
+        && players.some(p => activesOf(p).some(a => a.id === 'reduction'));
     const gained = {};
     winners.forEach(w => {
         let pts = baseShare;
         const myActives = activesOf(w);
-        if (myActives.some(a => a.id === 'reduction')) pts = Math.floor(pts / 2);
+        if (reductionActive) pts = Math.floor(pts / 2);
         if (myActives.some(a => a.id === 'double_reward')) pts = pts * 2;
         if (myActives.some(a => a.id === 'small_win') && (lot === 10 || lot === 15)) pts = pts * 2;
         w.points += pts;
@@ -1095,10 +1098,13 @@ function evaluateRound(roomCode) {
             const target = getByPlayerId(room, act.targetPlayerId);
             if (target) addLog(p, `Слепота: ${target.name} не увидит лот в следующем раунде 🔒`);
         }
+        if (myActives.some(a => a.id === 'reduction')) {
+            addLog(p, 'Сокращение: победитель получает вдвое меньше очков ✂');
+        }
         if (myActives.some(a => a.id === 'freeze')) {
             const act = myActives.find(a => a.id === 'freeze');
             const target = getByPlayerId(room, act.targetPlayerId);
-            if (target) addLog(target, 'Заморозка: способности отключены ❄');
+            if (target) addLog(target, 'Заморозка: активные и пассивные способности отключены ❄');
         }
     });
 
@@ -1166,4 +1172,10 @@ function evaluateRound(roomCode) {
 }
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Сервер запущен на http://localhost:${PORT}`));
+
+if (process.env.NO_LISTEN === '1') {
+    // Режим тестирования: не слушаем порт, экспортируем внутренности
+    module.exports = { createPlayer, resetPlayers, evaluateRound, rooms, ABILITY_BY_ID, ACTIVE_ABILITIES, PASSIVE_ABILITIES };
+} else {
+    server.listen(PORT, () => console.log(`Сервер запущен на http://localhost:${PORT}`));
+}
