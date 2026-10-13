@@ -3,6 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#1a1a1a">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%3E%3Crect%20width='100'%20height='100'%20rx='20'%20fill='%231a1a1a'/%3E%3Ctext%20x='50'%20y='70'%20font-size='56'%20text-anchor='middle'%3E%F0%9F%8E%B2%3C/text%3E%3C/svg%3E">
     <title>Lots — Настольная игра</title>
     <style>
         body {
@@ -53,6 +58,7 @@
             color: #1a1a1a;
             font-weight: bold;
             font-size: 16px;
+            min-height: 44px;
             cursor: pointer;
         }
 
@@ -321,6 +327,48 @@
         .btn-confirm:hover { background: #43a047; }
         .btn-cancel { background: #e53935; color: #fff; }
         .btn-cancel:hover { background: #c62828; }
+
+        /* --- Мобильные улучшения: достаточные зоны нажатия --- */
+        .kick-btn, .target-btn, .btn-icon, button.chip, .ability-item-head { min-height: auto; }
+
+        #btn-sound {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            width: 44px;
+            min-height: 44px;
+            padding: 0;
+            margin: 0;
+            border-radius: 50%;
+            background: #2a2a2a;
+            border: 1px solid #555;
+            color: #fff;
+            font-size: 18px;
+            z-index: 200;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, .4);
+        }
+        #btn-sound:hover { background: #333; }
+
+        #confetti-layer {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 999;
+            overflow: hidden;
+        }
+        .confetti-piece {
+            position: absolute;
+            top: -5vh;
+            border-radius: 2px;
+            animation-name: confetti-fall;
+            animation-timing-function: linear;
+            animation-fill-mode: forwards;
+        }
+        @keyframes confetti-fall {
+            0% { transform: translateY(-5vh) translateX(0) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(110vh) translateX(var(--drift, 0px)) rotate(720deg); opacity: .55; }
+        }
+        .copy-ok { background: #4caf50 !important; color: #fff !important; }
     </style>
     <script src="/socket.io/socket.io.js"></script>
 </head>
@@ -343,6 +391,7 @@
         <!-- ЭКРАН 2: Лобби комнаты -->
         <div id="lobby-screen" class="hidden">
             <h2>Код: <span id="display-code" style="color: #4caf50;">----</span></h2>
+            <button id="btn-copy-link" class="btn-secondary" style="width: auto; padding: 8px 14px; font-size: 14px;">📋 Копировать ссылку</button>
 
             <div class="mode-box">
                 <div class="mode-title">Режим игры</div>
@@ -355,6 +404,7 @@
 
             <p>Игроки в комнате:</p>
             <ul id="players-list" class="player-list"></ul>
+            <button id="btn-add-bot" class="btn-secondary hidden">🤖 Добавить бота</button>
             <button id="btn-start" class="hidden">Начать игру</button>
             <button id="btn-leave-lobby" class="btn-danger">Выйти из комнаты</button>
             <p id="lobby-error" class="error"></p>
@@ -386,7 +436,7 @@
             </div>
 
             <div id="bid-section">
-                <input type="number" id="bid-input" placeholder="Твоя ставка (монеты)" min="0">
+                <input type="number" id="bid-input" placeholder="Твоя ставка (монеты)" min="0" inputmode="numeric" autocomplete="off">
                 <button id="btn-submit-bid">Сделать ставку</button>
                 <div class="bid-line">Оставь поле пустым — поставишь 0 монет</div>
             </div>
@@ -454,6 +504,9 @@
         </div>
     </div>
 
+    <button id="btn-sound" title="Звук вкл/выкл">🔊</button>
+    <div id="confetti-layer"></div>
+
     <script>
         const socket = io();
 
@@ -467,6 +520,9 @@
         }
 
         const myPlayerId = getOrCreatePlayerId();
+
+        // Код комнаты из ссылки: ?room=ABCD
+        const urlRoomCode = ((new URLSearchParams(window.location.search).get('room') || '').toUpperCase().trim()) || null;
 
         const authScreen = document.getElementById('auth-screen');
         const lobbyScreen = document.getElementById('lobby-screen');
@@ -482,6 +538,9 @@
         const btnStart = document.getElementById('btn-start');
         const timerDisplay = document.getElementById('timer-display');
         const btnPlayAgain = document.getElementById('btn-play-again');
+        const btnAddBot = document.getElementById('btn-add-bot');
+        const btnCopyLink = document.getElementById('btn-copy-link');
+        const btnSound = document.getElementById('btn-sound');
         const modeSelect = document.getElementById('mode-select');
         const modeLabel = document.getElementById('mode-label');
         const bidInput = document.getElementById('bid-input');
@@ -512,6 +571,16 @@
             const savedName = localStorage.getItem('lots_playerName');
 
             if (savedName) playerNameInput.value = savedName;
+
+            // Приоритет — ссылка на комнату (?room=CODE)
+            if (urlRoomCode) {
+                roomCodeInput.value = urlRoomCode;
+                if (savedName) {
+                    saveSession(urlRoomCode, savedName);
+                    socket.emit('joinRoom', { roomCode: urlRoomCode, playerName: savedName, playerId: myPlayerId });
+                }
+                return;
+            }
 
             if (savedCode) {
                 socket.emit('rejoinRoom', { roomCode: savedCode, playerId: myPlayerId });
@@ -574,6 +643,105 @@
             if (e.target === modalOverlay) closeModal();
         });
 
+        // ---------------- Звуки (WebAudio, без файлов) ----------------
+        let soundOn = localStorage.getItem('lots_sound') !== '0';
+        let audioCtx = null;
+
+        function ensureAudio() {
+            if (!audioCtx) {
+                try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { audioCtx = null; }
+            }
+            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+        }
+        document.addEventListener('pointerdown', ensureAudio, { once: true });
+
+        function tone(freq, start, dur, type, vol) {
+            if (!audioCtx) return;
+            const o = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            const t0 = audioCtx.currentTime + start;
+            o.type = type || 'triangle';
+            o.frequency.setValueAtTime(freq, t0);
+            g.gain.setValueAtTime(vol || 0.045, t0);
+            g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+            o.connect(g);
+            g.connect(audioCtx.destination);
+            o.start(t0);
+            o.stop(t0 + dur);
+        }
+
+        function playSound(name) {
+            if (!soundOn) return;
+            ensureAudio();
+            if (!audioCtx) return;
+            switch (name) {
+                case 'click': tone(600, 0, 0.07, 'triangle', 0.05); break;
+                case 'coin': tone(700, 0, 0.06, 'square', 0.04); tone(1050, 0.06, 0.08, 'square', 0.04); break;
+                case 'pick': tone(450, 0, 0.08, 'triangle', 0.05); tone(680, 0.09, 0.1, 'triangle', 0.05); break;
+                case 'tick': tone(880, 0, 0.045, 'square', 0.03); break;
+                case 'round': tone(520, 0, 0.1, 'triangle', 0.045); tone(780, 0.1, 0.12, 'triangle', 0.045); break;
+                case 'win': tone(523, 0, 0.12, 'triangle', 0.05); tone(659, 0.13, 0.12, 'triangle', 0.05); tone(784, 0.26, 0.2, 'triangle', 0.06); break;
+                case 'lose': tone(392, 0, 0.15, 'triangle', 0.045); tone(311, 0.15, 0.25, 'triangle', 0.045); break;
+                case 'fanfare': [523, 659, 784, 1046].forEach((f, i) => tone(f, i * 0.14, 0.2, 'triangle', 0.06)); break;
+            }
+        }
+
+        function updateSoundBtn() {
+            if (btnSound) btnSound.innerText = soundOn ? '🔊' : '🔇';
+        }
+        updateSoundBtn();
+        btnSound.addEventListener('click', () => {
+            soundOn = !soundOn;
+            localStorage.setItem('lots_sound', soundOn ? '1' : '0');
+            updateSoundBtn();
+            if (soundOn) playSound('pick');
+        });
+
+        // ---------------- Конфетти ----------------
+        function showConfetti() {
+            const layer = document.getElementById('confetti-layer');
+            if (!layer) return;
+            layer.innerHTML = '';
+            const colors = ['#ffca28', '#4caf50', '#e53935', '#42a5f5', '#ab47bc', '#ff7043'];
+            for (let i = 0; i < 140; i++) {
+                const p = document.createElement('div');
+                p.className = 'confetti-piece';
+                p.style.left = (Math.random() * 100) + 'vw';
+                p.style.background = colors[Math.floor(Math.random() * colors.length)];
+                p.style.width = (6 + Math.random() * 6) + 'px';
+                p.style.height = (10 + Math.random() * 8) + 'px';
+                p.style.animationDelay = (Math.random() * 1.2) + 's';
+                p.style.animationDuration = (2.4 + Math.random() * 2.6) + 's';
+                p.style.setProperty('--drift', (Math.round((Math.random() - 0.5) * 160)) + 'px');
+                layer.appendChild(p);
+            }
+            setTimeout(() => { layer.innerHTML = ''; }, 9000);
+        }
+
+        // ---------------- Копирование ссылки ----------------
+        function copyText(text) {
+            const fallback = () => {
+                try {
+                    const ta = document.createElement('textarea');
+                    ta.value = text;
+                    ta.style.position = 'fixed';
+                    ta.style.opacity = '0';
+                    document.body.appendChild(ta);
+                    ta.focus();
+                    ta.select();
+                    const ok = document.execCommand('copy');
+                    ta.remove();
+                    return Promise.resolve(ok);
+                } catch (e) {
+                    return Promise.resolve(false);
+                }
+            };
+            if (navigator.clipboard && window.isSecureContext) {
+                return navigator.clipboard.writeText(text).then(() => true).catch(fallback);
+            }
+            return fallback();
+        }
+
         // ---------------- Меню ----------------
         document.getElementById('btn-create').addEventListener('click', () => {
             const name = playerNameInput.value.trim();
@@ -592,6 +760,26 @@
 
         document.getElementById('btn-start').addEventListener('click', () => {
             socket.emit('startGame');
+        });
+
+        btnAddBot.addEventListener('click', () => {
+            playSound('click');
+            socket.emit('addBot');
+        });
+
+        btnCopyLink.addEventListener('click', () => {
+            const code = displayCode.innerText.trim();
+            if (!code || code === '----') return;
+            const url = window.location.origin + window.location.pathname + '?room=' + code;
+            copyText(url).then(ok => {
+                playSound('pick');
+                btnCopyLink.innerText = ok ? '✅ Ссылка скопирована' : '⚠ Не удалось скопировать';
+                btnCopyLink.classList.toggle('copy-ok', ok);
+                setTimeout(() => {
+                    btnCopyLink.innerText = '📋 Копировать ссылку';
+                    btnCopyLink.classList.remove('copy-ok');
+                }, 1800);
+            });
         });
 
         document.getElementById('btn-leave-lobby').addEventListener('click', () => {
@@ -626,6 +814,7 @@
                 return gameError.innerText = 'Недостаточно монет!';
             }
             gameError.innerText = '';
+            playSound('coin');
             socket.emit('submitBid', { bid: bidVal });
             bidSection.classList.add('hidden');
             bidStatusMsg.classList.remove('hidden');
@@ -742,6 +931,7 @@
 
         socket.on('timerUpdate', (timeLeft) => {
             timerDisplay.innerText = timeLeft;
+            if (timeLeft <= 5 && timeLeft > 0) playSound('tick');
         });
 
         // --- Выбор способностей ---
@@ -777,6 +967,7 @@
         // --- Раунд ---
         socket.on('newRoundStarted', (data) => {
             enterGameScreen();
+            playSound('round');
             document.getElementById('round-result').classList.add('hidden');
             gameError.innerText = '';
             gameError.style.color = '';
@@ -829,6 +1020,7 @@
 
         socket.on('roundResult', (data) => {
             document.getElementById('round-result').classList.remove('hidden');
+            playSound(data.didWin ? 'win' : 'lose');
             const winnersStr = data.winnersNames.join(', ');
 
             let text;
@@ -871,6 +1063,8 @@
         socket.on('gameOver', (data) => {
             hideAllScreens();
             finalScreen.classList.remove('hidden');
+            playSound('fanfare');
+            showConfetti();
 
             const winnersNames = data.winners.map(w => w.name).join(', ');
             document.getElementById('winner-announcement').innerText = `Победитель: ${winnersNames}!`;
@@ -927,6 +1121,7 @@
 
         function renderModeBlock() {
             const isHost = hostId === myPlayerId;
+            btnAddBot.classList.toggle('hidden', !isHost);
             if (isHost) {
                 modeSelect.classList.remove('hidden');
                 modeSelect.value = currentMode;
@@ -1149,6 +1344,7 @@
                         b.className = 'target-btn';
                         b.innerText = op.name;
                         b.addEventListener('click', () => {
+                            playSound('click');
                             socket.emit('activateAbility', { abilityId: opts.id, targetPlayerId: op.playerId });
                         });
                         list.appendChild(b);
@@ -1159,6 +1355,7 @@
                     b.className = 'btn-confirm';
                     b.innerText = '⚡ Активировать';
                     b.addEventListener('click', () => {
+                        playSound('click');
                         socket.emit('activateAbility', { abilityId: opts.id, targetPlayerId: null });
                     });
                     body.appendChild(b);
@@ -1209,6 +1406,7 @@
 
         function onAbilityCardClick(option) {
             if (abLocked) return;
+            playSound('pick');
             abSelectedId = option.id;
             renderAbilityCards();
             confirmChoice();

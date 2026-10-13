@@ -122,6 +122,10 @@ function getByPlayerId(room, playerId) {
 function clearRoomTimers(room) {
     if (room.timer) { clearInterval(room.timer); room.timer = null; }
     if (room.selTimer) { clearInterval(room.selTimer); room.selTimer = null; }
+    if (room.botTimers) {
+        room.botTimers.forEach(t => clearTimeout(t));
+        room.botTimers = [];
+    }
 }
 
 function createPlayer(socketId, playerId, name) {
@@ -129,6 +133,7 @@ function createPlayer(socketId, playerId, name) {
         id: socketId,
         playerId,
         name,
+        isBot: false,
         coins: 100,
         points: 0,
         currentBid: null,
@@ -261,6 +266,187 @@ function percent(value, part) {
 }
 
 // ---------------------------------------------------------------------------
+// Боты
+// ---------------------------------------------------------------------------
+function roomAllBots(room) {
+    return room.players.length > 0 && room.players.every(p => p.isBot);
+}
+
+function reassignHostIfNeeded(room) {
+    const humans = room.players.filter(p => !p.isBot);
+    if (humans.length === 0) return false;
+    const newHost = humans[0];
+    room.hostId = newHost.id;
+    room.hostPlayerId = newHost.playerId;
+    return true;
+}
+
+function createBot(room) {
+    const num = room.players.filter(p => p.isBot).length + 1;
+    const bot = createPlayer(
+        'bot_socket_' + Math.random().toString(36).substr(2, 8),
+        'bot_' + Math.random().toString(36).substr(2, 8),
+        '🤖 Бот ' + num
+    );
+    bot.isBot = true;
+    return bot;
+}
+
+// Стратегия ставки бота: зависит от монет, очков и имеющихся пассивных способностей
+function computeBotBid(room, bot) {
+    const wantSmall = bot.passiveAbilities.some(a =>
+        ['small_bet', 'economist', 'minimalist'].includes(a.id));
+    const maxPoints = Math.max(...room.players.map(p => p.points));
+    let ratio;
+    if (wantSmall) ratio = 0.05 + Math.random() * 0.15;                 // 5–20%
+    else if (bot.coins <= 25) ratio = 0.10 + Math.random() * 0.20;      // 10–30%
+    else if (bot.points >= maxPoints) ratio = 0.15 + Math.random() * 0.25; // лидер играет осторожнее
+    else if (bot.points <= 5) ratio = 0.30 + Math.random() * 0.30;      // аутсайдер рискует
+    else ratio = 0.20 + Math.random() * 0.35;                           // 20–55%
+    const raw = Math.floor(bot.coins * ratio);
+    const rounded = Math.round(raw / 5) * 5;
+    return Math.max(0, Math.min(bot.coins, rounded));
+}
+
+// Ставка, выставленная любым источником (игрок или бот) + проверка «все поставили»
+function setBidAndCheck(room, player, bidAmount) {
+    player.currentBid = bidAmount;
+    player.hasBid = true;
+
+    io.to(room.roomId).emit('bidReceived', {
+        playersStatus: room.players.map(p => ({ playerId: p.playerId, hasBid: p.hasBid }))
+    });
+
+    // Глаз-алмаз: показываем ставку выбранного игрока владельцу способности
+    room.players.forEach(watcher => {
+        if (!watcher.eyeTarget || watcher.eyeTarget !== player.playerId) return;
+        const watcherSocket = io.sockets.sockets.get(watcher.id);
+        if (watcherSocket) {
+            watcherSocket.emit('bidRevealed', { playerId: player.playerId, bid: bidAmount });
+        }
+    });
+
+    if (room.players.every(p => p.hasBid)) {
+        clearRoomTimers(room);
+        evaluateRound(room.roomId);
+    }
+}
+
+// Общая логика активации активной способности (используется игроками и ботами)
+function performAbilityActivation(room, player, abilityId, targetPlayerId) {
+    if (room.mode !== MODE_ABILITIES) return 'Способности недоступны в этом режиме!';
+    if (room.gameState !== 'playing') {
+        return 'Способность можно активировать только во время раунда!';
+    }
+    if (player.frozen) return 'Твои способности заморожены в этом раунде!';
+    if (player.armedAbility) return 'Способность уже активирована в этом раунде!';
+
+    const idx = player.activeAbilities.findIndex(a => a.id === abilityId);
+    if (idx === -1) return 'У тебя нет такой способности!';
+    const def = ABILITY_BY_ID[abilityId];
+    if (!def) return null;
+
+    let target = null;
+    if (def.target) {
+        const targetPlayer = getByPlayerId(room, targetPlayerId);
+        if (!targetPlayer || targetPlayer.playerId === player.playerId) return 'Выбери соперника!';
+        target = targetPlayer.playerId;
+    }
+
+    player.activeAbilities.splice(idx, 1);
+    player.usedActiveAbilities = player.usedActiveAbilities || [];
+    if (!player.usedActiveAbilities.includes(abilityId)) player.usedActiveAbilities.push(abilityId);
+    player.armedAbility = { id: abilityId, targetPlayerId: target };
+
+    // Способности с немедленным эффектом
+    if (abilityId === 'freeze' && target) {
+        const targetPlayer = getByPlayerId(room, target);
+        if (targetPlayer) {
+            targetPlayer.frozen = true;
+            // Снимаем уже активированную способность цели и возвращаем её в инвентарь
+            if (targetPlayer.armedAbility) {
+                targetPlayer.activeAbilities.push({ id: targetPlayer.armedAbility.id, round: room.currentRound });
+                targetPlayer.armedAbility = null;
+                const ts = io.sockets.sockets.get(targetPlayer.id);
+                if (ts) ts.emit('abilityBlocked', { reason: 'Тебя заморозили — способность возвращена' });
+            }
+            notifyAbilities(room, targetPlayer);
+        }
+    }
+    if (abilityId === 'blind' && target) {
+        const targetPlayer = getByPlayerId(room, target);
+        if (targetPlayer) targetPlayer.blindNext = true;
+    }
+    if (abilityId === 'diamond' && target) {
+        const targetPlayer = getByPlayerId(room, target);
+        player.eyeTarget = target;
+        if (targetPlayer && targetPlayer.hasBid) {
+            const ws = io.sockets.sockets.get(player.id);
+            if (ws) ws.emit('bidRevealed', { playerId: targetPlayer.playerId, bid: targetPlayer.currentBid || 0 });
+        }
+    }
+
+    notifyAbilities(room, player);
+    return null;
+}
+
+// Один «ход» бота: выбрать способность / поставить / активировать активку
+function botAct(room, bot) {
+    const currentRoom = rooms[room.roomId];
+    if (!currentRoom || currentRoom !== room) return;
+    if (room.players.indexOf(bot) === -1) return;
+
+    if (room.gameState === 'abilitySelect' && room.mode === MODE_ABILITIES) {
+        if (!bot.pendingChoice && bot.abilityOptions && bot.abilityOptions.length) {
+            const opts = bot.abilityOptions;
+            const actives = opts.filter(o => ABILITY_BY_ID[o.id] && ABILITY_BY_ID[o.id].type === 'active');
+            const pool = room.currentRound >= 5 && actives.length ? actives : opts;
+            const opt = pool[Math.floor(Math.random() * pool.length)];
+            bot.pendingChoice = { abilityId: opt.id, targetPlayerId: null };
+
+            if (room.players.every(p => p.pendingChoice)) {
+                clearRoomTimers(room);
+                finishAbilitySelection(room.roomId);
+            }
+        }
+        return;
+    }
+
+    if (room.gameState === 'playing') {
+        // Авто-активация активной способности (не всегда)
+        if (room.mode === MODE_ABILITIES && !bot.frozen && !bot.armedAbility
+            && bot.activeAbilities.length && Math.random() < 0.55) {
+            const idx = Math.floor(Math.random() * bot.activeAbilities.length);
+            const id = bot.activeAbilities[idx].id;
+            const def = ABILITY_BY_ID[id];
+            let targetId = null;
+            if (def && def.target) {
+                const humans = room.players.filter(p => !p.isBot && p.playerId !== bot.playerId);
+                const others = room.players.filter(p => p.playerId !== bot.playerId);
+                const pool = humans.length ? humans : others;
+                if (pool.length) targetId = pool[Math.floor(Math.random() * pool.length)].playerId;
+            }
+            if (def) performAbilityActivation(room, bot, id, targetId);
+        }
+
+        if (!bot.hasBid) {
+            setBidAndCheck(room, bot, computeBotBid(room, bot));
+        }
+    }
+}
+
+// Запланировать действия всех ботов со случайной задержкой
+function scheduleBotActions(room, minDelay, maxDelay) {
+    room.botTimers = room.botTimers || [];
+    room.players.forEach(p => {
+        if (!p.isBot) return;
+        const delay = minDelay + Math.floor(Math.random() * (maxDelay - minDelay));
+        const timer = setTimeout(() => botAct(room, p), delay);
+        room.botTimers.push(timer);
+    });
+}
+
+// ---------------------------------------------------------------------------
 // Socket.io
 // ---------------------------------------------------------------------------
 io.on('connection', (socket) => {
@@ -287,6 +473,7 @@ io.on('connection', (socket) => {
                 currentLot: 0,
                 timer: null,
                 selTimer: null,
+                botTimers: [],
                 timeLeft: ROUND_TIME,
                 players: [newPlayer]
             };
@@ -381,6 +568,22 @@ io.on('connection', (socket) => {
             io.to(room.roomId).emit('updatePlayers', getCleanRoom(room));
         } catch (err) {
             console.error('Error in setGameMode:', err);
+        }
+    });
+
+    // Добавление бота в лобби (только создатель комнаты)
+    socket.on('addBot', () => {
+        try {
+            const found = findHostRoom(socket.id);
+            if (!found) return;
+            const { room } = found;
+            if (room.gameState !== 'lobby') return;
+            if (room.players.length >= 6) return socket.emit('errorMsg', 'В комнате уже 6 игроков!');
+
+            room.players.push(createBot(room));
+            io.to(room.roomId).emit('updatePlayers', getCleanRoom(room));
+        } catch (err) {
+            console.error('Error in addBot:', err);
         }
     });
 
@@ -487,13 +690,13 @@ io.on('connection', (socket) => {
             room.players.splice(index, 1);
             socket.leave(code);
 
-            if (room.players.length === 0) {
+            // Если не осталось игроков (или остались одни боты) — комната закрывается
+            if (room.players.length === 0 || roomAllBots(room)) {
                 clearRoomTimers(room);
                 delete rooms[code];
             } else {
                 if (room.hostId === socket.id) {
-                    room.hostId = room.players[0].id;
-                    room.hostPlayerId = room.players[0].playerId;
+                    reassignHostIfNeeded(room);
                 }
                 io.to(code).emit('updatePlayers', getCleanRoom(room));
 
@@ -516,7 +719,7 @@ io.on('connection', (socket) => {
             const found = findPlayerRoom(socket.id);
             if (!found) return;
 
-            const { code, room, player } = found;
+            const { room, player } = found;
             if (room.gameState !== 'playing') return;
             if (player.hasBid) return;
 
@@ -528,30 +731,7 @@ io.on('connection', (socket) => {
                 return socket.emit('errorMsg', 'Некорректная ставка!');
             }
 
-            player.currentBid = bidAmount;
-            player.hasBid = true;
-
-            io.to(code).emit('bidReceived', {
-                playersStatus: room.players.map(p => ({ playerId: p.playerId, hasBid: p.hasBid }))
-            });
-
-            // Глаз-алмаз: показываем ставку выбранного игрока владельцу способности
-            room.players.forEach(watcher => {
-                if (!watcher.eyeTarget || watcher.eyeTarget !== player.playerId) return;
-                const watcherSocket = io.sockets.sockets.get(watcher.id);
-                if (watcherSocket) {
-                    watcherSocket.emit('bidRevealed', {
-                        playerId: player.playerId,
-                        bid: bidAmount
-                    });
-                }
-            });
-
-            const allBidded = room.players.every(p => p.hasBid);
-            if (allBidded) {
-                clearRoomTimers(room);
-                evaluateRound(code);
-            }
+            setBidAndCheck(room, player, bidAmount);
         } catch (err) {
             console.error('Error in submitBid:', err);
         }
@@ -588,70 +768,15 @@ io.on('connection', (socket) => {
             const found = findPlayerRoom(socket.id);
             if (!found) return;
 
-            const { code, room, player } = found;
-            if (room.mode !== MODE_ABILITIES) return;
-            if (room.gameState !== 'playing') {
-                return socket.emit('errorMsg', 'Способность можно активировать только во время раунда!');
-            }
-            if (player.frozen) {
-                return socket.emit('errorMsg', 'Твои способности заморожены в этом раунде!');
-            }
-            if (player.armedAbility) {
-                return socket.emit('errorMsg', 'Способность уже активирована в этом раунде!');
-            }
+            const { room, player } = found;
+            const err = performAbilityActivation(room, player, abilityId, targetPlayerId);
+            if (err) return socket.emit('errorMsg', err);
 
-            const idx = player.activeAbilities.findIndex(a => a.id === abilityId);
-            if (idx === -1) return;
             const def = ABILITY_BY_ID[abilityId];
-            if (!def) return;
-
-            let target = null;
-            if (def.target) {
-                const targetPlayer = getByPlayerId(room, targetPlayerId);
-                if (!targetPlayer || targetPlayer.playerId === player.playerId) {
-                    return socket.emit('errorMsg', 'Выбери соперника!');
-                }
-                target = targetPlayer.playerId;
-            }
-
-            // Забираем способность из инвентаря и активируем
-            player.activeAbilities.splice(idx, 1);
-            player.usedActiveAbilities = player.usedActiveAbilities || [];
-            if (!player.usedActiveAbilities.includes(abilityId)) player.usedActiveAbilities.push(abilityId);
-            player.armedAbility = { id: abilityId, targetPlayerId: target };
-
-            // Способности с немедленным эффектом
-            if (abilityId === 'freeze' && target) {
-                const targetPlayer = getByPlayerId(room, target);
-                if (targetPlayer) {
-                    targetPlayer.frozen = true;
-                    // Снимаем уже активированную способность цели и возвращаем её в инвентарь
-                    if (targetPlayer.armedAbility) {
-                        targetPlayer.activeAbilities.push({ id: targetPlayer.armedAbility.id, round: room.currentRound });
-                        targetPlayer.armedAbility = null;
-                        const ts = io.sockets.sockets.get(targetPlayer.id);
-                        if (ts) ts.emit('abilityBlocked', { reason: 'Тебя заморозили — способность возвращена' });
-                    }
-                    notifyAbilities(room, targetPlayer);
-                }
-            }
-            if (abilityId === 'blind' && target) {
-                const targetPlayer = getByPlayerId(room, target);
-                if (targetPlayer) {
-                    // Слепота действует в следующем раунде — тогда игрок не увидит лот
-                    targetPlayer.blindNext = true;
-                }
-            }
-            if (abilityId === 'diamond' && target) {
-                const targetPlayer = getByPlayerId(room, target);
-                player.eyeTarget = target;
-                if (targetPlayer && targetPlayer.hasBid) {
-                    socket.emit('bidRevealed', { playerId: targetPlayer.playerId, bid: targetPlayer.currentBid || 0 });
-                }
-            }
-
-            notifyAbilities(room, player);
-            socket.emit('abilityActivated', { id: abilityId, name: def.name, targetName: target ? (getByPlayerId(room, target) || {}).name : null });
+            const targetName = player.armedAbility && player.armedAbility.targetPlayerId
+                ? ((getByPlayerId(room, player.armedAbility.targetPlayerId) || {}).name || null)
+                : null;
+            socket.emit('abilityActivated', { id: abilityId, name: def ? def.name : abilityId, targetName });
         } catch (err) {
             console.error('Error in activateAbility:', err);
         }
@@ -742,6 +867,9 @@ function startAbilitySelection(roomCode) {
             points: x.points
         }))
     }));
+
+    // Боты выбирают способность за ~0.5–1.5 сек
+    scheduleBotActions(room, 500, 1500);
 
     room.selTimer = setInterval(() => {
         if (!rooms[roomCode]) return clearRoomTimers(room);
@@ -875,6 +1003,9 @@ function startNewRound(roomCode) {
             evaluateRound(roomCode);
         }
     }, 1000);
+
+    // Боты ставят за ~0.6–1.8 сек
+    scheduleBotActions(room, 600, 1800);
 }
 
 function evaluateRound(roomCode) {
