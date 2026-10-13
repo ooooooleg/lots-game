@@ -289,23 +289,70 @@ function createBot(room) {
         '🤖 Бот ' + num
     );
     bot.isBot = true;
+    // Характер бота влияет на агрессивность и разброс ставок
+    bot.botStyle = BOT_STYLES[Math.floor(Math.random() * BOT_STYLES.length)];
     return bot;
 }
 
-// Стратегия ставки бота: зависит от монет, очков и имеющихся пассивных способностей
+// Характеры ботов: влияют на агрессивность и разброс ставок
+const BOT_STYLES = ['cautious', 'balanced', 'aggressive', 'wild'];
+
+// Стратегия ставки бота: бюджет по оставшимся раундам, учёт позиции и истории.
+// Специально избегаем «круглых» ставок и добавляем разброс, чтобы бота нельзя
+// было обыграть простым «поставлю на 1 больше».
 function computeBotBid(room, bot) {
-    const wantSmall = bot.passiveAbilities.some(a =>
+    const roundsLeft = Math.max(1, room.maxRounds - room.currentRound + 1);
+    const opponents = room.players.filter(p => p.playerId !== bot.playerId);
+    const maxOppPoints = opponents.length ? Math.max(...opponents.map(p => p.points)) : 0;
+    const lead = bot.points - maxOppPoints;
+
+    const likesSmall = bot.passiveAbilities.some(a =>
         ['small_bet', 'economist', 'minimalist'].includes(a.id));
-    const maxPoints = Math.max(...room.players.map(p => p.points));
-    let ratio;
-    if (wantSmall) ratio = 0.05 + Math.random() * 0.15;                 // 5–20%
-    else if (bot.coins <= 25) ratio = 0.10 + Math.random() * 0.20;      // 10–30%
-    else if (bot.points >= maxPoints) ratio = 0.15 + Math.random() * 0.25; // лидер играет осторожнее
-    else if (bot.points <= 5) ratio = 0.30 + Math.random() * 0.30;      // аутсайдер рискует
-    else ratio = 0.20 + Math.random() * 0.35;                           // 20–55%
-    const raw = Math.floor(bot.coins * ratio);
-    const rounded = Math.round(raw / 5) * 5;
-    return Math.max(0, Math.min(bot.coins, rounded));
+
+    const budget = bot.coins / roundsLeft;              // сколько монет «в среднем» на раунд
+    const lotWeight = 0.55 + (room.currentLot || 20) / 60; // 10⭐ -> ~0.72, 50⭐ -> ~1.38
+
+    // История победных ставок (бот подстраивается под соперников)
+    const hist = (room.bidHistory || []).slice(-3);
+    const recentMax = hist.length ? Math.max(...hist.map(h => h.maxBid)) : 0;
+
+    // Агрессивность от характера
+    const style = bot.botStyle || 'balanced';
+    let aggression;
+    if (style === 'aggressive') aggression = 0.55;
+    else if (style === 'cautious') aggression = 0.18;
+    else if (style === 'wild') aggression = 0.45;
+    else aggression = 0.35;
+
+    // Отстаём в концовке — рискуем; лидируем — бережём
+    if (lead <= -15 && roundsLeft <= 3) aggression += 0.25;
+    if (lead >= 15) aggression -= 0.18;
+    aggression = Math.max(0.05, Math.min(0.9, aggression));
+
+    const roll = Math.random();
+    let target;
+
+    if (likesSmall && !(roll < aggression * 0.6 && roundsLeft <= 2)) {
+        // Пассивки любят маленькие ставки
+        target = Math.min(bot.coins, 4 + Math.floor(Math.random() * 9)); // 4..12
+    } else if (roll < aggression) {
+        // Идём в атаку: целимся выше недавних победных ставок
+        const base = budget * (1.4 + Math.random() * 1.7) * lotWeight;
+        const beat = recentMax > 0 ? recentMax + Math.floor(Math.random() * 6) : 0;
+        target = Math.max(base, beat);
+    } else if (roll < aggression + 0.5) {
+        // Обычная ставка
+        target = budget * (0.55 + Math.random() * 0.75) * lotWeight;
+    } else {
+        // Экономим / блефуем малой ставкой
+        target = budget * Math.random() * 0.4;
+    }
+
+    let bid = Math.round(target + (Math.random() * 5 - 2)); // разброс, уходим от круглых чисел
+    if (Math.random() < 0.15) bid += 1;                     // иногда «на 1 больше» типичной
+    if (Math.random() < (style === 'wild' ? 0.10 : 0.04)) bid = 0; // редкий блеф нулём
+
+    return Math.max(0, Math.min(bot.coins, bid));
 }
 
 // Ставка, выставленная любым источником (игрок или бот) + проверка «все поставили»
@@ -423,8 +470,13 @@ function botAct(room, bot) {
             if (def && def.target) {
                 const humans = room.players.filter(p => !p.isBot && p.playerId !== bot.playerId);
                 const others = room.players.filter(p => p.playerId !== bot.playerId);
-                const pool = humans.length ? humans : others;
-                if (pool.length) targetId = pool[Math.floor(Math.random() * pool.length)].playerId;
+                const pool = (humans.length ? humans : others).slice();
+                if (pool.length) {
+                    // Чаще целимся в лидера по очкам
+                    pool.sort((a, b) => b.points - a.points);
+                    const chosen = Math.random() < 0.7 ? pool[0] : pool[Math.floor(Math.random() * pool.length)];
+                    targetId = chosen.playerId;
+                }
             }
             if (def) performAbilityActivation(room, bot, id, targetId);
         }
@@ -474,6 +526,7 @@ io.on('connection', (socket) => {
                 timer: null,
                 selTimer: null,
                 botTimers: [],
+                bidHistory: [],
                 timeLeft: ROUND_TIME,
                 players: [newPlayer]
             };
@@ -648,6 +701,7 @@ io.on('connection', (socket) => {
             room.gameState = 'playing';
             room.currentRound = 1;
             room.maxRounds = MODES[room.mode].maxRounds;
+            room.bidHistory = [];
 
             startRoundOrSelection(code);
         } catch (err) {
@@ -669,6 +723,7 @@ io.on('connection', (socket) => {
             room.currentLot = 0;
             room.timeLeft = ROUND_TIME;
             room.maxRounds = MODES[room.mode].maxRounds;
+            room.bidHistory = [];
             resetPlayers(room);
 
             io.to(code).emit('returnedToLobby', {
@@ -1273,6 +1328,11 @@ function evaluateRound(roomCode) {
         hostPlayerId: room.hostPlayerId
     }));
 
+    // История победных ставок — боты используют её для адаптации
+    room.bidHistory = room.bidHistory || [];
+    room.bidHistory.push({ round: room.currentRound, lot, maxBid });
+    if (room.bidHistory.length > 10) room.bidHistory.shift();
+
     setTimeout(() => {
         const currentRoom = rooms[roomCode];
         if (!currentRoom) return;
@@ -1306,7 +1366,7 @@ const PORT = process.env.PORT || 3000;
 
 if (process.env.NO_LISTEN === '1') {
     // Режим тестирования: не слушаем порт, экспортируем внутренности
-    module.exports = { createPlayer, resetPlayers, evaluateRound, rooms, ABILITY_BY_ID, ACTIVE_ABILITIES, PASSIVE_ABILITIES };
+    module.exports = { createPlayer, resetPlayers, evaluateRound, rooms, ABILITY_BY_ID, ACTIVE_ABILITIES, PASSIVE_ABILITIES, createBot, computeBotBid };
 } else {
     server.listen(PORT, () => console.log(`Сервер запущен на http://localhost:${PORT}`));
 }
