@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#141018">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%3E%3Crect%20width='100'%20height='100'%20rx='20'%20fill='%23141018'/%3E%3Ctext%20x='50'%20y='70'%20font-size='56'%20text-anchor='middle'%3E%F0%9F%8E%B2%3C/text%3E%3C/svg%3E">
+    <title>LOTS — Забег</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: radial-gradient(circle at 50% 0%, #241b2e 0%, #141018 60%);
+            color: #f0e9f5;
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            padding: 12px 12px 90px;
+        }
+        .wrap { width: 100%; max-width: 720px; }
+        h1 { color: #ffca28; text-align: center; margin: 6px 0 2px; letter-spacing: 2px; }
+        .sub { text-align: center; color: #a99bc0; font-size: 13px; margin-bottom: 14px; }
+        h2 { color: #ffca28; font-size: 20px; margin: 10px 0; }
+        h3 { font-size: 15px; margin: 12px 0 6px; color: #d9c9ee; }
+        .hidden { display: none !important; }
+
+        button {
+            font-family: inherit;
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            background: #ffca28;
+            color: #1a1220;
+            font-weight: bold;
+            font-size: 15px;
+            padding: 11px 14px;
+            min-height: 44px;
+            margin: 4px 0;
+        }
+        button:hover { filter: brightness(1.08); }
+        button:disabled { opacity: .45; cursor: not-allowed; }
+        .btn-sec { background: #3a3145; color: #f0e9f5; }
+        .btn-ghost { background: transparent; border: 1px solid #55486a; color: #cbbde0; }
+        .btn-danger { background: #e53935; color: #fff; }
+        .btn-sm { font-size: 13px; padding: 6px 10px; min-height: 34px; }
+        .row { display: flex; gap: 8px; flex-wrap: wrap; }
+        .grow { flex: 1 1 auto; }
+
+        .panel {
+            background: #1f1a29;
+            border: 1px solid #352c45;
+            border-radius: 12px;
+            padding: 12px;
+            margin: 10px 0;
+        }
+        .muted { color: #a99bc0; font-size: 12px; }
+        .err { color: #ff6b6b; font-weight: bold; min-height: 18px; font-size: 13px; }
+
+        /* HUD */
+        #hud {
+            position: sticky; top: 0; z-index: 30;
+            background: rgba(20,16,24,.96);
+            border: 1px solid #352c45; border-radius: 12px;
+            padding: 8px 10px; margin-bottom: 10px;
+            backdrop-filter: blur(4px);
+        }
+        .hud-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .hud-stats { display: flex; gap: 12px; flex-wrap: wrap; font-size: 14px; }
+        .hud-stats b { color: #ffca28; }
+        .hp-bar { height: 8px; background: #4a2230; border-radius: 4px; overflow: hidden; margin-top: 6px; }
+        .hp-fill { height: 100%; background: linear-gradient(90deg,#e53935,#ff8a65); }
+        .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+        .chip { background: #2c2438; border: 1px solid #45385c; border-radius: 20px; padding: 2px 9px; font-size: 12px; }
+        .chip.relic { border-color: #ffca28; color: #ffd86b; }
+        .chip.curse { border-color: #e53935; color: #ff8a80; }
+        .chip.rarity-rare { border-color: #42a5f5; }
+        .chip.rarity-epic { border-color: #ab47bc; }
+        .chip.rarity-legendary { border-color: #ffa726; box-shadow: 0 0 8px rgba(255,167,38,.5); }
+
+        /* Heroes */
+        .hero-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .hero-card {
+            background: #251f31; border: 2px solid #3a3145; border-radius: 12px;
+            padding: 10px; cursor: pointer; text-align: left; transition: .12s;
+        }
+        .hero-card:hover { border-color: #ffca28; }
+        .hero-card.sel { border-color: #ffca28; background: #322a1f; box-shadow: 0 0 14px rgba(255,202,40,.4); }
+        .hero-card.locked { opacity: .55; }
+        .hero-card .hc-name { font-weight: bold; color: #ffca28; font-size: 15px; }
+        .hero-card .hc-desc { font-size: 12px; color: #cdbfe0; margin-top: 4px; line-height: 1.35; }
+
+        /* Map */
+        .floor { display: flex; gap: 8px; justify-content: center; margin: 6px 0; }
+        .node {
+            position: relative;
+            width: 58px; height: 58px; border-radius: 12px; background: #251f31;
+            border: 2px solid #3a3145; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; font-size: 20px;
+        }
+        .node .nl { font-size: 9px; color: #a99bc0; margin-top: 1px; }
+        .node.current { border-color: #ffca28; cursor: pointer; box-shadow: 0 0 12px rgba(255,202,40,.4); }
+        .node.current:hover { background: #322a1f; }
+        .node.past { opacity: .35; }
+        .node.future { opacity: .5; }
+        .node.locked::after { content: '🔒'; position: absolute; font-size: 12px; }
+        .floor-wrap { position: relative; }
+        .floor-label { text-align: center; font-size: 11px; color: #7d6f95; }
+
+        /* Cards */
+        .card-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
+        .card {
+            background: #251f31; border: 2px solid #3a3145; border-radius: 12px;
+            padding: 12px; cursor: pointer; text-align: left; transition: .12s;
+        }
+        .card:hover { border-color: #ffca28; }
+        .card .c-title { font-weight: bold; color: #ffca28; }
+        .card .c-desc { font-size: 13px; color: #cdbfe0; margin-top: 4px; }
+        .card .c-price { color: #7bd88f; font-weight: bold; margin-top: 6px; }
+        .card.sold { opacity: .4; pointer-events: none; }
+        .card.rarity-rare { border-color: #3a5a7a; }
+        .card.rarity-epic { border-color: #6a3a7a; }
+        .card.rarity-legendary { border-color: #a06a2a; }
+
+        .combat-enemy { font-size: 40px; text-align: center; }
+        .combat-lot {
+            background: #ffca28; color: #1a1220; font-size: 26px; font-weight: bold;
+            padding: 10px; border-radius: 10px; text-align: center; margin: 8px 0;
+        }
+        .scoreboard { display: flex; justify-content: space-around; text-align: center; font-size: 14px; }
+        .scoreboard .big { font-size: 22px; font-weight: bold; color: #ffca28; }
+        input[type=number], input[type=text] {
+            background: #2c2438; border: 1px solid #55486a; color: #fff;
+            border-radius: 8px; padding: 11px; font-size: 16px; width: 100%; text-align: center;
+        }
+        .log { list-style: none; padding: 0; margin: 6px 0 0; font-size: 12px; color: #b9a9d0; max-height: 130px; overflow-y: auto; }
+        .log li { margin: 2px 0; }
+        .banner {
+            position: fixed; left: 50%; top: 14px; transform: translateX(-50%);
+            background: #2c2438; border: 1px solid #ffca28; color: #ffd86b;
+            padding: 10px 16px; border-radius: 10px; z-index: 200; font-weight: bold;
+            box-shadow: 0 6px 24px rgba(0,0,0,.5); max-width: 90vw; text-align: center;
+        }
+        .banner.bad { border-color: #e53935; color: #ff8a80; }
+        .banner.good { border-color: #4caf50; color: #a5d6a7; }
+        #sound-btn, #back-btn {
+            position: fixed; top: 10px; width: 44px; height: 44px; border-radius: 50%;
+            padding: 0; margin: 0; z-index: 200; font-size: 18px;
+        }
+        #sound-btn { right: 10px; background: #251f31; border: 1px solid #55486a; color: #fff; }
+        #back-btn { left: 10px; background: #251f31; border: 1px solid #55486a; color: #fff; }
+        .divider { height: 1px; background: #352c45; margin: 10px 0; }
+        .stat-line { font-size: 13px; color: #cdbfe0; margin: 3px 0; }
+        .pill { display: inline-block; background: #322a1f; border: 1px solid #ffca28; color: #ffd86b; border-radius: 20px; padding: 2px 10px; font-size: 12px; margin: 2px; }
+        @media (min-width: 560px) { .card-grid { grid-template-columns: 1fr 1fr; } }
+    </style>
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+    <button id="back-btn" title="В меню">←</button>
+    <button id="sound-btn" title="Звук">🔊</button>
+    <div class="wrap">
+        <h1>🎲 ЗАБЕГ</h1>
+        <div class="sub" id="topline">Рогалик о ставках</div>
+
+        <!-- Стартовый экран -->
+        <div id="start-screen">
+            <div class="panel">
+                <h3>Выбери героя</h3>
+                <div class="hero-grid" id="hero-grid"></div>
+                <div class="muted" id="hero-meta" style="margin-top:8px;"></div>
+            </div>
+            <div class="panel">
+                <h3>Сложность («Закон»)</h3>
+                <div class="row" style="align-items:center;">
+                    <button class="btn-sec btn-sm" id="asc-minus">−</button>
+                    <div class="grow" style="text-align:center;font-weight:bold;color:#ffca28;" id="asc-label">Закон 0</div>
+                    <button class="btn-sec btn-sm" id="asc-plus">+</button>
+                </div>
+                <div class="muted">Открывается за победы. Каждый закон усиливает врагов, но даёт больше кристаллов.</div>
+            </div>
+            <input type="text" id="name-input" placeholder="Твоё имя" maxlength="15" style="margin-bottom:8px;">
+            <div class="row">
+                <button class="grow" id="btn-start">▶ Начать забег</button>
+                <button class="btn-sec" id="btn-daily">🎯 Забег дня</button>
+            </div>
+            <div class="panel" id="meta-panel"></div>
+            <p class="err" id="start-err"></p>
+        </div>
+
+        <!-- Экран забега (универсальный) -->
+        <div id="run-screen" class="hidden">
+            <div id="hud"></div>
+            <div id="screen-body"></div>
+            <div class="row" style="margin-top:10px;">
+                <button class="btn-ghost btn-sm" id="btn-abandon">Сдаться и выйти</button>
+                <button class="btn-ghost btn-sm" id="btn-content">📖 Способности и реликвии</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="banner-layer"></div>
+
+    <script>
+    // ================== Socket и базовое ==================
+    const socket = io();
+    const $ = id => document.getElementById(id);
+    const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+    const NODE_META = {
+        battle: { icon: '⚔️', label: 'Лот' }, elite: { icon: '💀', label: 'Элита' },
+        boss: { icon: '👑', label: 'Босс' }, treasure: { icon: '🎁', label: 'Сундук' },
+        event: { icon: '📜', label: 'Событие' }, rest: { icon: '🔥', label: 'Костёр' },
+        shop: { icon: '🛒', label: 'Магазин' }, forge: { icon: '🔨', label: 'Кузница' },
+        library: { icon: '📚', label: 'Библиотека' }, altar: { icon: '⚗️', label: 'Алтарь' },
+        casino: { icon: '🎰', label: 'Казино' }
+    };
+
+    // ================== Мета-прогрессия (localStorage) ==================
+    const ALL_HEROES = ['sprinter', 'marathon', 'merchant', 'hunter', 'collector', 'mystic', 'tank', 'hedonist', 'intriguer'];
+    const HERO_COST = { tank: 30, hedonist: 50, intriguer: 70 };
+    function loadMeta() {
+        try {
+            const m = JSON.parse(localStorage.getItem('lots_rl_meta') || '{}');
+            return Object.assign({ crystals: 0, bestScore: 0, runs: 0, wins: 0, unlocked: [], ascension: 0, dailyBest: 0, dailyDate: '' }, m);
+        } catch (e) { return { crystals: 0, bestScore: 0, runs: 0, wins: 0, unlocked: [], ascension: 0, dailyBest: 0, dailyDate: '' }; }
+    }
+    function saveMeta(m) { localStorage.setItem('lots_rl_meta', JSON.stringify(m)); }
+    let meta = loadMeta();
+    function isUnlocked(id) { return ALL_HEROES.indexOf(id) < 6 || meta.unlocked.includes(id); }
+
+    // ================== Звук ==================
+    let soundOn = localStorage.getItem('lots_sound') !== '0';
+    let actx = null;
+    function ensureAudio() { if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { actx = null; } } if (actx && actx.state === 'suspended') actx.resume(); }
+    document.addEventListener('pointerdown', ensureAudio, { once: true });
+    function tone(f, s, d, t, v) { if (!actx) return; const o = actx.createOscillator(), g = actx.createGain(); const t0 = actx.currentTime + s; o.type = t || 'triangle'; o.frequency.setValueAtTime(f, t0); g.gain.setValueAtTime(v || .045, t0); g.gain.exponentialRampToValueAtTime(.0001, t0 + d); o.connect(g); g.connect(actx.destination); o.start(t0); o.stop(t0 + d); }
+    function sfx(n) {
+        if (!soundOn) return; ensureAudio(); if (!actx) return;
+        if (n === 'click') tone(600, 0, .06, 'triangle', .05);
+        else if (n === 'coin') { tone(700, 0, .06, 'square', .04); tone(1050, .06, .08, 'square', .04); }
+        else if (n === 'win') { tone(523, 0, .1, 'triangle', .05); tone(784, .1, .16, 'triangle', .05); }
+        else if (n === 'lose') { tone(392, 0, .14, 'triangle', .045); tone(294, .14, .22, 'triangle', .045); }
+        else if (n === 'hit') { tone(180, 0, .18, 'sawtooth', .05); }
+        else if (n === 'pick') { tone(450, 0, .08, 'triangle', .05); tone(680, .09, .1, 'triangle', .05); }
+        else if (n === 'fanfare') { [523, 659, 784, 1046].forEach((f, i) => tone(f, i * .13, .2, 'triangle', .06)); }
+    }
+    $('sound-btn').innerText = soundOn ? '🔊' : '🔇';
+    $('sound-btn').onclick = () => { soundOn = !soundOn; localStorage.setItem('lots_sound', soundOn ? '1' : '0'); $('sound-btn').innerText = soundOn ? '🔊' : '🔇'; if (soundOn) sfx('pick'); };
+
+    function banner(text, kind, ms) {
+        const d = document.createElement('div');
+        d.className = 'banner' + (kind ? ' ' + kind : '');
+        d.innerText = text;
+        $('banner-layer').appendChild(d);
+        setTimeout(() => d.remove(), ms || 2600);
+    }
+
+    // ================== Состояние ==================
+    let view = null;
+    let selectedHero = 'sprinter';
+    let selectedAsc = 0;
+    const nameInput = $('name-input');
+    nameInput.value = localStorage.getItem('lots_playerName') || '';
+
+    // ================== Стартовый экран ==================
+    function renderStart(heroes) {
+        const grid = $('hero-grid');
+        grid.innerHTML = '';
+        (heroes || []).forEach(h => {
+            const unlocked = isUnlocked(h.id);
+            const card = document.createElement('div');
+            card.className = 'hero-card' + (h.id === selectedHero ? ' sel' : '') + (!unlocked ? ' locked' : '');
+            card.innerHTML = '<div class="hc-name">' + h.icon + ' ' + esc(h.name) + '</div><div class="hc-desc">' + esc(h.desc) + '</div>';
+            if (!unlocked) {
+                const cost = HERO_COST[h.id] || 40;
+                const b = document.createElement('button');
+                b.className = 'btn-sm';
+                b.style.marginTop = '6px';
+                b.innerText = '🔓 Открыть за ' + cost + ' 💎';
+                b.disabled = meta.crystals < cost;
+                b.onclick = (e) => { e.stopPropagation(); if (meta.crystals >= cost) { meta.crystals -= cost; meta.unlocked.push(h.id); saveMeta(meta); sfx('pick'); selectedHero = h.id; renderStart(heroes); renderMeta(); } };
+                card.appendChild(b);
+            } else {
+                card.onclick = () => { selectedHero = h.id; sfx('click'); renderStart(heroes); };
+            }
+            grid.appendChild(card);
+        });
+        const hsel = (heroes || []).find(h => h.id === selectedHero);
+        $('hero-meta').innerText = hsel ? ('Выбран: ' + hsel.name) : '';
+        $('asc-label').innerText = 'Закон ' + selectedAsc + (selectedAsc === 0 ? ' (обычный)' : '');
+    }
+    function renderMeta() {
+        $('meta-panel').innerHTML =
+            '<h3>Прогресс</h3>' +
+            '<div class="stat-line">💎 Кристаллы: <b>' + meta.crystals + '</b></div>' +
+            '<div class="stat-line">🏆 Лучший счёт: <b>' + meta.bestScore + '</b></div>' +
+            '<div class="stat-line">🎯 Забегов: <b>' + meta.runs + '</b>, побед: <b>' + meta.wins + '</b></div>' +
+            '<div class="stat-line">🔥 Макс. закон: <b>' + meta.ascension + '</b></div>' +
+            (meta.dailyDate ? '<div class="stat-line">📅 Забег дня (' + meta.dailyDate + '): <b>' + meta.dailyBest + '</b></div>' : '');
+    }
+    $('asc-minus').onclick = () => { selectedAsc = Math.max(0, selectedAsc - 1); $('asc-label').innerText = 'Закон ' + selectedAsc + (selectedAsc === 0 ? ' (обычный)' : ''); sfx('click'); };
+    $('asc-plus').onclick = () => { selectedAsc = Math.min(meta.ascension, selectedAsc + 1); $('asc-label').innerText = 'Закон ' + selectedAsc + (selectedAsc === 0 ? ' (обычный)' : ''); sfx('click'); };
+    $('btn-start').onclick = () => {
+        ensureAudio();
+        const name = nameInput.value.trim() || 'Игрок';
+        localStorage.setItem('lots_playerName', name);
+        if (!isUnlocked(selectedHero)) return banner('Герой ещё не открыт', 'bad');
+        sfx('pick');
+        socket.emit('rlStart', { heroId: selectedHero, name, ascension: selectedAsc });
+    };
+    $('btn-daily').onclick = () => {
+        ensureAudio();
+        const name = nameInput.value.trim() || 'Игрок';
+        const dateStr = new Date().toISOString().slice(0, 10);
+        socket.emit('rlStart', { heroId: selectedHero, name, ascension: selectedAsc, seed: 'daily-' + dateStr });
+    };
+    $('btn-abandon').onclick = () => { if (confirm('Сдаться и выйти из забега?')) socket.emit('rlAbandon'); };
+    $('back-btn').onclick = () => { window.location.href = '/'; };
+    $('btn-content').onclick = () => { if (lastContent) renderContentModal(lastContent); else socket.emit('rlList'); };
+
+    function renderContentModal(content) {
+        const overlay = document.createElement('div');
+        overlay.className = 'banner';
+        overlay.style.cssText = 'position:fixed;inset:0;transform:none;left:0;top:0;max-width:none;border-radius:0;overflow:auto;text-align:left;align-items:flex-start;';
+        let html = '<div style="max-width:640px;margin:0 auto;"><h2>📖 Способности и реликвии</h2>';
+        html += '<h3>⚡ Активные способности</h3>';
+        (content.actives || []).forEach(a => { html += '<div class="chip" style="display:block;margin:3px 0;">' + esc(a.name) + ' — ' + esc(a.desc) + '</div>'; });
+        html += '<h3>🛡 Пассивные способности</h3>';
+        (content.passives || []).forEach(a => { html += '<div class="chip" style="display:block;margin:3px 0;">' + esc(a.name) + ' — ' + esc(a.desc) + '</div>'; });
+        html += '<h3>Реликвии</h3>';
+        (content.relics || []).forEach(r => { html += '<div class="chip relic rarity-' + r.rarity + '" style="display:block;margin:3px 0;">' + r.icon + ' <b>' + esc(r.name) + '</b> — ' + esc(r.desc) + '</div>'; });
+        html += '<h3>Проклятия</h3>';
+        (content.curses || []).forEach(c => { html += '<div class="chip curse" style="display:block;margin:3px 0;">' + c.icon + ' <b>' + esc(c.name) + '</b> — ' + esc(c.desc) + '</div>'; });
+        html += '<h3>Зелья</h3>';
+        (content.potions || []).forEach(p => { html += '<div class="chip" style="display:block;margin:3px 0;">' + p.icon + ' <b>' + esc(p.name) + '</b> — ' + esc(p.desc) + '</div>'; });
+        html += '<div class="row" style="margin-top:10px;justify-content:center;"><button id="content-close">Закрыть</button></div></div>';
+        overlay.innerHTML = html;
+        document.body.appendChild(overlay);
+        overlay.querySelector('#content-close').onclick = () => overlay.remove();
+    }
+
+    // ================== HUD ==================
+    function renderHUD(v) {
+        const chips = [];
+        v.relics.forEach(r => chips.push('<span class="chip relic rarity-' + r.rarity + '" title="' + esc(r.desc) + '">' + r.icon + ' ' + esc(r.name) + '</span>'));
+        v.curses.forEach(c => chips.push('<span class="chip curse" title="' + esc(c.desc) + '">' + c.icon + ' ' + esc(c.name) + '</span>'));
+        const hpPct = Math.max(0, Math.min(100, v.hp / v.maxHp * 100));
+        const potions = (v.potions || []).map(p => '<span class="chip">' + p.icon + ' ' + esc(p.name) + ' ×' + p.count + '</span>').join('');
+        $('hud').innerHTML =
+            '<div class="hud-top"><div class="hud-stats">' +
+                '<span>' + (v.hero ? v.hero.icon : '') + ' <b>' + esc(v.hero ? v.hero.name : '') + '</b></span>' +
+                '<span>Акт <b>' + v.act + '</b></span>' +
+                '<span>Этаж <b>' + (v.floorIndex + 1) + '</b>/' + v.maxFloors + '</span>' +
+                '<span>❤️ <b>' + v.hp + '</b>/' + v.maxHp + '</span>' +
+                '<span>💰 <b>' + v.gold + '</b></span>' +
+                (v.ascension ? '<span>🔥 Закон <b>' + v.ascension + '</b></span>' : '') +
+            '</div></div>' +
+            '<div class="hp-bar"><div class="hp-fill" style="width:' + hpPct + '%"></div></div>' +
+            (chips.length ? '<div class="chips">' + chips.join('') + '</div>' : '') +
+            (potions ? '<div class="chips">' + potions + '</div>' : '');
+    }
+
+    // ================== Отрисовка экранов ==================
+    function render(v) {
+        view = v;
+        $('start-screen').classList.toggle('hidden', !!(v && v.screen !== 'start'));
+        $('run-screen').classList.toggle('hidden', !v);
+        if (!v) return;
+        renderHUD(v);
+        const body = $('screen-body');
+        const screen = v.screen;
+        document.getElementById('topline').innerText = v.actName + ' · ' + (v.hero ? v.hero.name : '') + (v.ascension ? ' · Закон ' + v.ascension : '');
+        if (screen === 'map' || screen === 'gameover' || screen === 'victory') { if (screen === 'map') renderMap(v, body); else renderEnd(v, body); return; }
+        if (screen === 'combat') renderCombat(v, body);
+        else if (screen === 'reward') renderReward(v, body);
+        else if (screen === 'event') renderEvent(v, body);
+        else if (screen === 'shop') renderShop(v, body);
+        else if (screen === 'treasure') renderTreasure(v, body);
+        else if (screen === 'rest') renderRest(v, body);
+        else if (screen === 'forge') renderForge(v, body);
+        else if (screen === 'library') renderLibrary(v, body);
+        else if (screen === 'altar') renderAltar(v, body);
+        else if (screen === 'casino') renderCasino(v, body);
+        else body.innerHTML = '<div class="panel">Неизвестный экран: ' + esc(screen) + '</div>';
+    }
+
+    function renderMap(v, body) {
+        const floors = v.map.floors;
+        let html = '<div class="panel"><h3>Карта — ' + esc(v.actName) + '</h3>';
+        // показываем диапазон этажей вокруг текущего
+        const from = Math.max(0, v.floorIndex - 1), to = Math.min(floors.length, v.floorIndex + 5);
+        for (let f = from; f < to; f++) {
+            const isCurrent = f === v.floorIndex;
+            const isPast = f < v.floorIndex;
+            html += '<div class="floor-wrap"><div class="floor-label">Этаж ' + (f + 1) + (f === floors.length - 1 ? ' — БОСС' : '') + '</div><div class="floor">';
+            floors[f].forEach((node, ni) => {
+                const meta = NODE_META[node.type] || { icon: '❔', label: '?' };
+                const cls = 'node ' + (isCurrent ? 'current' : isPast ? 'past' : 'future') + (node.locked ? ' locked' : '');
+                const label = node.revealed || isCurrent ? meta.label : '???';
+                const clickable = isCurrent ? ' data-floor="' + f + '" data-node="' + ni + '"' : '';
+                html += '<div class="' + cls + '"' + clickable + '><span>' + meta.icon + '</span><span class="nl">' + esc(label) + '</span></div>';
+            });
+            html += '</div></div>';
+        }
+        html += '<div class="muted" style="margin-top:8px;">Выбери узел на текущем этаже (подсвечен).</div></div>';
+        body.innerHTML = html;
+        body.querySelectorAll('.node.current').forEach(el => {
+            el.onclick = () => {
+                sfx('click');
+                socket.emit('rlEnterNode', { floorIndex: parseInt(el.dataset.floor, 10), nodeIndex: parseInt(el.dataset.node, 10) });
+            };
+        });
+    }
+
+    function renderCombat(v, body) {
+        const b = v.battle;
+        const enemyHp = b.enemyCoins;
+        let html = '<div class="panel">' +
+            '<div class="combat-enemy">' + b.enemy.icon + '</div>' +
+            '<div style="text-align:center;font-weight:bold;color:#ffca28;">' + esc(b.enemy.name) + ' <span class="muted">(' + (b.tier === 'boss' ? 'босс' : b.tier === 'elite' ? 'элита' : 'боец') + ')</span></div>' +
+            '<div class="scoreboard" style="margin-top:8px;">' +
+                '<div><div>Ты</div><div class="big">' + b.playerPoints + '</div><div class="muted">⭐</div></div>' +
+                '<div style="align-self:center;color:#a99bc0;">раунд ' + b.round + '/' + b.maxRounds + '</div>' +
+                '<div><div>' + esc(b.enemy.name) + '</div><div class="big">' + b.enemyPoints + '</div><div class="muted">⭐</div></div>' +
+            '</div>' +
+            '<div class="combat-lot">' + (b.lotHidden ? '???' : b.lot + ' ⭐') + (b.lotHidden ? ' <span style="font-size:13px;">(скрыто)</span>' : '') + '</div>' +
+            '<div class="stat-line">Твои монеты: <b>' + b.playerCoins + '</b> 🪙 &nbsp;|&nbsp; Монеты врага: <b>' + b.enemyCoins + '</b> 🪙</div>' +
+            (b.bonusBid ? '<div class="stat-line">Бонус к ставке: +' + b.bonusBid + '</div>' : '') +
+            (b.armedActive ? '<div class="stat-line">⚡ Готово: ' + esc(b.armedActive) + '</div>' : '') +
+            '</div>';
+
+        // активные способности
+        if (b.activeUsable.length) {
+            html += '<div class="panel"><h3>Способности (по одной за раунд, перезарядка каждый бой)</h3><div class="row">';
+            b.activeUsable.forEach(a => {
+                html += '<button class="btn-sec btn-sm" data-act="' + a.id + '" title="' + esc(a.desc) + '">⚡ ' + esc(a.name) + '</button>';
+            });
+            html += '</div></div>';
+        }
+        // зелья в бою
+        const combatPotions = (v.potions || []).filter(p => p.where === 'combat' || p.where === 'any');
+        if (combatPotions.length) {
+            html += '<div class="panel"><h3>Зелья</h3><div class="row">';
+            combatPotions.forEach(p => { html += '<button class="btn-sec btn-sm" data-potion="' + p.id + '" title="' + esc(p.desc) + '">' + p.icon + ' ' + esc(p.name) + ' ×' + p.count + '</button>'; });
+            html += '</div></div>';
+        }
+
+        if (!b.hasBid) {
+            html += '<div class="panel"><h3>Твоя ставка</h3>' +
+                '<input type="number" id="bid-input" min="0" max="' + b.playerCoins + '" inputmode="numeric" placeholder="монеты (пусто = 0)">' +
+                '<div class="row" style="margin-top:8px;"><button class="grow" id="btn-bid">Сделать ставку</button></div>' +
+                '<div class="muted">Высшая эффективная ставка забирает лот. Монеты тратятся.</div></div>';
+        } else {
+            html += '<div class="panel" style="text-align:center;">Ставка сделана...</div>';
+        }
+
+        if (b.log && b.log.length) html += '<div class="panel"><h3>Ход боя</h3><ul class="log">' + b.log.map(l => '<li>' + esc(l) + '</li>').join('') + '</ul></div>';
+
+        body.innerHTML = html;
+        body.querySelectorAll('[data-act]').forEach(el => el.onclick = () => { sfx('click'); socket.emit('rlActivate', { abilityId: el.dataset.act }); });
+        body.querySelectorAll('[data-potion]').forEach(el => el.onclick = () => { sfx('coin'); socket.emit('rlUsePotion', { potionId: el.dataset.potion }); });
+        const btn = $('btn-bid');
+        if (btn) btn.onclick = () => {
+            const raw = $('bid-input').value.trim();
+            const val = raw === '' ? 0 : parseInt(raw, 10);
+            if (isNaN(val) || val < 0) return banner('Введи число', 'bad');
+            if (val > b.playerCoins) return banner('Недостаточно монет', 'bad');
+            sfx('coin');
+            socket.emit('rlSubmitBid', { bid: val });
+        };
+    }
+
+    function renderReward(v, body) {
+        let html = '<div class="panel"><h2>🏆 Победа!</h2><div class="stat-line">Получено золота: <b>+' + v.reward.gold + '</b> 💰</div>' +
+            '<h3>Выбери награду</h3><div class="card-grid">';
+        v.reward.options.forEach((o, i) => {
+            html += '<div class="card rarity-' + (o.rarity || 'common') + '" data-opt="' + i + '"><div class="c-title">' + (o.icon || '🎁') + ' ' + esc(o.name) + '</div><div class="c-desc">' + esc(o.desc) + '</div></div>';
+        });
+        html += '</div></div>';
+        body.innerHTML = html;
+        body.querySelectorAll('[data-opt]').forEach(el => el.onclick = () => { sfx('pick'); socket.emit('rlChooseReward', { index: parseInt(el.dataset.opt, 10) }); });
+    }
+
+    function renderEvent(v, body) {
+        const e = v.event;
+        let html = '<div class="panel"><h2>📜 ' + esc(e.title) + '</h2><p style="color:#cdbfe0;">' + esc(e.text) + '</p>';
+        if (!e.resolved) {
+            html += '<div class="row" style="flex-direction:column;align-items:stretch;">';
+            e.choices.forEach(c => {
+                html += '<button class="btn-sec" data-choice="' + c.i + '" ' + (c.available ? '' : 'disabled') + '>' + esc(c.label) + (c.hint ? ' <span class="muted">— ' + esc(c.hint) + '</span>' : '') + '</button>';
+            });
+            html += '</div>';
+        } else {
+            html += '<button id="ev-continue">Продолжить</button>';
+        }
+        html += '</div>';
+        body.innerHTML = html;
+        body.querySelectorAll('[data-choice]').forEach(el => el.onclick = () => { sfx('click'); socket.emit('rlEventChoice', { index: parseInt(el.dataset.choice, 10) }); });
+        const cont = $('ev-continue');
+        if (cont) cont.onclick = () => { sfx('click'); socket.emit('rlEventContinue'); };
+    }
+
+    function renderShop(v, body) {
+        let html = '<div class="panel"><h2>🛒 Магазин</h2><div class="stat-line">Золото: <b>' + v.gold + '</b> 💰</div><div class="card-grid" style="margin-top:8px;">';
+        v.shop.stock.forEach((it, i) => {
+            const cls = 'card' + (it.sold ? ' sold' : '') + ' rarity-' + (it.rarity || 'common');
+            html += '<div class="' + cls + '" data-buy="' + i + '"><div class="c-title">' + (it.icon || '🎁') + ' ' + esc(it.name) + '</div><div class="c-desc">' + esc(it.desc) + '</div><div class="c-price">' + (it.sold ? 'Куплено' : it.price + ' 💰') + '</div></div>';
+        });
+        html += '</div><button style="margin-top:10px" id="shop-leave">Выйти из магазина</button></div>';
+        body.innerHTML = html;
+        body.querySelectorAll('[data-buy]').forEach(el => el.onclick = () => { sfx('coin'); socket.emit('rlShopBuy', { index: parseInt(el.dataset.buy, 10) }); });
+        $('shop-leave').onclick = () => { sfx('click'); socket.emit('rlShopLeave'); };
+    }
+
+    function renderTreasure(v, body) {
+        const t = v.treasure;
+        let html = '<div class="panel"><h2>🎁 Сокровищница</h2>';
+        if (t.got) html += '<div class="stat-line">Получено: <b>' + (t.got.icon || '') + ' ' + esc(t.got.name) + '</b></div>';
+        if (t.trapped) html += '<div class="stat-line" style="color:#ff8a80;">Сундук был проклят! Получено проклятие.</div>';
+        if (t.locked && !t.opened) {
+            html += '<p>Сундук заперт. Вскрыть ценой 15 репутации?</p><button id="tr-take">Вскрыть</button>';
+        } else {
+            html += '<button id="tr-take">Продолжить</button>';
+        }
+        html += '</div>';
+        body.innerHTML = html;
+        $('tr-take').onclick = () => { sfx('pick'); socket.emit('rlTreasureTake'); };
+    }
+
+    function renderRest(v, body) {
+        let html = '<div class="panel"><h2>🔥 Костёр</h2><div class="stat-line">Репутация: <b>' + v.hp + '/' + v.maxHp + '</b> ❤️</div>' +
+            '<p>Выбери одно:</p><div class="row" style="flex-direction:column;align-items:stretch;">' +
+            '<button data-rest="heal">Отдохнуть (+35% репутации)</button>' +
+            '<button data-rest="maxhp">Закалиться (+8% к макс. репутации)</button>' +
+            (v.curses.length ? '<button data-rest="removeCurse">Снять проклятие (' + v.curses.length + ')</button>' : '') +
+            '</div></div>';
+        body.innerHTML = html;
+        body.querySelectorAll('[data-rest]').forEach(el => el.onclick = () => { sfx('pick'); socket.emit('rlRest', { action: el.dataset.rest }); });
+    }
+
+    function renderForge(v, body) {
+        const all = (v.abilities.active.map(a => ({ ...a, kind: 'active' }))).concat(v.abilities.passive.map(a => ({ ...a, kind: 'passive' })));
+        let html = '<div class="panel"><h2>🔨 Кузница</h2><p>Выбери способность для перековки — она заменится на случайную другую того же типа.</p>';
+        if (!all.length) html += '<div class="muted">У тебя нет способностей.</div>';
+        html += '<div class="card-grid">';
+        all.forEach(a => {
+            html += '<div class="card" data-forge="' + a.id + '"><div class="c-title">' + (a.kind === 'active' ? '⚡ ' : '🛡 ') + esc(a.name) + '</div><div class="c-desc">' + esc(a.desc) + '</div></div>';
+        });
+        html += '</div><button class="btn-ghost" style="margin-top:10px" id="forge-leave">Уйти (+10 золота)</button></div>';
+        body.innerHTML = html;
+        body.querySelectorAll('[data-forge]').forEach(el => el.onclick = () => { sfx('pick'); socket.emit('rlForgeChoose', { abilityId: el.dataset.forge }); });
+        $('forge-leave').onclick = () => { sfx('click'); socket.emit('rlForgeLeave'); };
+    }
+
+    function renderLibrary(v, body) {
+        let html = '<div class="panel"><h2>📚 Библиотека</h2><p>Выбери способность.</p><div class="card-grid">';
+        v.library.options.forEach(a => {
+            html += '<div class="card" data-lib="' + a.id + '"><div class="c-title">' + (a.type === 'active' ? '⚡ ' : '🛡 ') + esc(a.name) + '</div><div class="c-desc">' + esc(a.desc) + '</div></div>';
+        });
+        html += '</div><div class="muted" style="margin-top:6px;">Слоты активных: ' + v.abilities.active.length + '/4, пассивных: ' + v.abilities.passive.length + '/6.</div>' +
+            '<button class="btn-ghost" style="margin-top:8px" id="lib-leave">Пропустить (+25 золота)</button></div>';
+        body.innerHTML = html;
+        body.querySelectorAll('[data-lib]').forEach(el => el.onclick = () => { sfx('pick'); socket.emit('rlLibraryChoose', { abilityId: el.dataset.lib }); });
+        $('lib-leave').onclick = () => { sfx('click'); socket.emit('rlLibraryLeave'); };
+    }
+
+    function renderAltar(v, body) {
+        let html = '<div class="panel"><h2>⚗️ Алтарь</h2><p>Обменяй что-то на силу.</p><div class="row" style="flex-direction:column;align-items:stretch;">';
+        html += '<button data-alt="blood" ' + (v.hp > 20 ? '' : 'disabled') + '>Отдать 15 репутации → реликвия</button>';
+        html += '<button data-alt="gold" ' + (v.gold >= 40 ? '' : 'disabled') + '>Отдать 40 золота → реликвия</button>';
+        html += '<button data-alt="sacrifice">Пожертвовать реликвию → +60 золота</button>';
+        html += '<button data-alt="curse">Взять проклятие → реликвия</button>';
+        html += '<button class="btn-ghost" data-alt="leave">Уйти</button>';
+        html += '</div></div>';
+        body.innerHTML = html;
+        body.querySelectorAll('[data-alt]').forEach(el => el.onclick = () => { sfx('pick'); socket.emit('rlAltar', { action: el.dataset.alt }); });
+    }
+
+    function renderCasino(v, body) {
+        let html = '<div class="panel"><h2>🎰 Казино</h2><div class="stat-line">Золото: <b>' + v.gold + '</b> 💰</div>';
+        if (v.casino.lastResult) {
+            html += v.casino.lastResult.win
+                ? '<div class="stat-line" style="color:#7bd88f;">Выигрыш! +' + v.casino.lastResult.amount + ' 💰</div>'
+                : '<div class="stat-line" style="color:#ff8a80;">Проигрыш −' + v.casino.lastResult.amount + ' 💰</div>';
+        }
+        html += '<p>45% шанс удвоить ставку. Поставь сумму:</p>' +
+            '<input type="number" id="casino-amount" min="1" max="' + Math.max(1, v.gold) + '" placeholder="ставка">' +
+            '<div class="row" style="margin-top:8px;"><button class="grow" id="casino-bet">Играть</button><button class="btn-sec" id="casino-leave">Выйти</button></div></div>';
+        body.innerHTML = html;
+        $('casino-bet').onclick = () => { const a = parseInt($('casino-amount').value, 10) || 0; sfx('coin'); socket.emit('rlCasinoBet', { amount: a }); };
+        $('casino-leave').onclick = () => { sfx('click'); socket.emit('rlCasinoLeave'); };
+    }
+
+    function renderEnd(v, body) {
+        const r = v.result || {};
+        const victory = v.screen === 'victory';
+        let html = '<div class="panel" style="text-align:center;">' +
+            '<h2>' + (victory ? '🏆 ПОБЕДА!' : '💀 Забег окончен') + '</h2>' +
+            '<div class="stat-line">Счёт: <b>' + (r.score || 0) + '</b></div>' +
+            '<div class="stat-line">Получено кристаллов: <b>+' + (r.crystals || 0) + '</b> 💎</div>' +
+            '<div class="stat-line">Глубина: <b>' + (r.depth || 0) + '</b> · Золото: <b>' + (r.gold || 0) + '</b> 💰</div>' +
+            '<div class="stat-line">Боёв выиграно: <b>' + (r.stats ? r.stats.battlesWon : 0) + '</b>, проиграно: <b>' + (r.stats ? r.stats.battlesLost : 0) + '</b></div>' +
+            '<div class="stat-line">Реликвий: <b>' + ((r.relics || []).length) + '</b>, проклятий: <b>' + ((r.curses || []).length) + '</b></div>' +
+            '<div class="stat-line muted">Семя: ' + (r.seed != null ? r.seed : '') + '</div>' +
+            '<div class="row" style="justify-content:center;margin-top:10px;"><button id="end-again">Новый забег</button><button class="btn-sec" id="end-menu">В меню</button></div>' +
+            '</div>';
+        body.innerHTML = html;
+        $('end-again').onclick = () => { hideRun(); showStart(); socket.emit('rlList'); };
+        $('end-menu').onclick = () => { window.location.href = '/'; };
+    }
+
+    function hideRun() { $('run-screen').classList.add('hidden'); }
+    function showStart() { $('start-screen').classList.remove('hidden'); renderMeta(); }
+
+    // ================== События сервера ==================
+    let lastContent = null;
+    socket.on('connect', () => { socket.emit('rlList'); });
+
+    socket.on('rlContent', (content) => {
+        lastContent = content;
+        renderStart(content.heroes);
+        renderMeta();
+    });
+
+    socket.on('rlState', (data) => {
+        sending = false;
+        const v = data.view;
+        if (v && (v.screen === 'gameover' || v.screen === 'victory')) { onRunEnd(v); }
+        // первый раз — перейти в забег
+        if (v && v.screen !== 'start') {
+            $('start-screen').classList.add('hidden');
+            $('run-screen').classList.remove('hidden');
+        }
+        render(v);
+    });
+
+    socket.on('rlRoundResult', (r) => {
+        sfx(r.playerWins ? 'win' : 'lose');
+    });
+
+    socket.on('rlCombatEnd', (c) => {
+        if (c.win) banner('Победа над ' + c.enemy.name + '! ' + c.playerPoints + ':' + c.enemyPoints, 'good', 3200);
+        else { sfx('hit'); banner('Поражение... −' + c.damage + ' репутации' + (c.revived ? ' (Феникс спас!)' : ''), 'bad', 3600); }
+    });
+
+    socket.on('rlError', (msg) => {
+        sending = false;
+        banner(msg || 'Ошибка', 'bad');
+    });
+
+    socket.on('rlAbandoned', () => { hideRun(); showStart(); socket.emit('rlList'); });
+
+    let endHandled = false;
+    function onRunEnd(v) {
+        if (endHandled) return;
+        endHandled = true;
+        const r = v.result || {};
+        meta.runs++;
+        if (v.screen === 'victory') meta.wins++;
+        meta.crystals += (r.crystals || 0);
+        if ((r.score || 0) > meta.bestScore) meta.bestScore = r.score;
+        if (v.screen === 'victory' && meta.ascension < 15) meta.ascension = Math.min(15, meta.ascension + 1);
+        if (typeof r.seed === 'string' && r.seed.startsWith('daily-')) {
+            const dateStr = new Date().toISOString().slice(0, 10);
+            meta.dailyDate = dateStr;
+            if ((r.score || 0) > meta.dailyBest) meta.dailyBest = r.score;
+        }
+        saveMeta(meta);
+        sfx(v.screen === 'victory' ? 'fanfare' : 'lose');
+    }
+
+    // Сброс флага при старте нового забега + защита от двойных действий
+    const ACTION_EVENTS = new Set(['rlEnterNode', 'rlSubmitBid', 'rlActivate', 'rlUsePotion', 'rlChooseReward',
+        'rlLibraryChoose', 'rlLibraryLeave', 'rlForgeChoose', 'rlForgeLeave', 'rlRest', 'rlEventChoice',
+        'rlEventContinue', 'rlShopBuy', 'rlShopLeave', 'rlTreasureTake', 'rlAltar', 'rlCasinoBet', 'rlCasinoLeave']);
+    let sending = false;
+    const origEmit = socket.emit.bind(socket);
+    socket.emit = function (ev, ...args) {
+        if (ev === 'rlStart') endHandled = false;
+        if (ACTION_EVENTS.has(ev)) {
+            if (sending) return socket; // игнорируем повторный клик, пока ждём ответ
+            sending = true;
+            setTimeout(() => { sending = false; }, 6000);
+        }
+        return origEmit(ev, ...args);
+    };
+    </script>
+</body>
+</html>

@@ -386,6 +386,8 @@
             <input type="text" id="room-code-input" placeholder="Код комнаты (4 символа)" maxlength="4" style="text-transform: uppercase;">
             <button id="btn-join">Войти в комнату</button>
             <p id="error-msg" class="error"></p>
+            <hr style="border-color: #444; margin: 15px 0;">
+            <button id="btn-roguelike" style="background:#7e57c2;color:#fff;">🎲 Одиночный забег (рогалик)</button>
         </div>
 
         <!-- ЭКРАН 2: Лобби комнаты -->
@@ -756,6 +758,12 @@
             if (!name || !code) return errorMsg.innerText = 'Введи имя и код!';
             saveSession(code, name);
             socket.emit('joinRoom', { roomCode: code, playerName: name, playerId: myPlayerId });
+        });
+
+        document.getElementById('btn-roguelike').addEventListener('click', () => {
+            const name = playerNameInput.value.trim();
+            if (name) localStorage.setItem('lots_playerName', name);
+            window.location.href = '/rl.html';
         });
 
         document.getElementById('btn-start').addEventListener('click', () => {

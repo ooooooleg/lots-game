@@ -73,6 +73,11 @@ ACTIVE_ABILITIES.forEach(a => ABILITY_BY_ID[a.id] = Object.assign({ type: 'activ
 PASSIVE_ABILITIES.forEach(a => ABILITY_BY_ID[a.id] = Object.assign({ type: 'passive' }, a));
 
 // ---------------------------------------------------------------------------
+// Режим «Забег» (рогалик) — отдельный модуль, использует io и способности
+// ---------------------------------------------------------------------------
+require('./roguelike').attachRoguelike(io, { ACTIVE_ABILITIES, PASSIVE_ABILITIES });
+
+// ---------------------------------------------------------------------------
 // Утилиты
 // ---------------------------------------------------------------------------
 process.on('uncaughtException', (err) => {
