@@ -1,8 +1,8 @@
 // ===========================================================================
 //  LOTS — режим «Забег» (рогалик)
-//  Полностью серверный движок. Переиспользует способности основной игры и
-//  логику торгов, добавляет карту, реликвии, проклятия, события, магазин,
-//  репутацию (HP), золото, счёт и мета-прогрессию.
+//  Полностью серверный движок: карта с боевым уклоном, бои на ставках,
+//  собственные способности режима, реликвии/проклятия с жёсткими лимитами,
+//  события, магазин, репутация (HP), золото, счёт и мета-прогрессия.
 // ===========================================================================
 
 // ---------------------------------------------------------------------------
@@ -31,12 +31,56 @@ function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 function chance(run, p) { return run._rng() < p; }
 
 // ---------------------------------------------------------------------------
-//  Способности (ссылки на определения основной игры; задаются при attach)
+//  СПОСОБНОСТИ «ЗАБЕГА» — сделаны специально под этот режим.
+//  Это не активки/пассивки обычной игры: здесь всё привязано к тактике
+//  торгов (ставка/раунд/монеты), а выбор ограничен жёсткими лимитами.
 // ---------------------------------------------------------------------------
-let ACTIVES = [];
-let PASSIVES = [];
+const MAX_ACTIVE = 2;   // слотов активных способностей
+const MAX_PASSIVE = 2;  // слотов пассивных способностей
+const MAX_RELICS = 7;   // максимум реликвий (включая геройскую)
+const MAX_POTIONS = 3;  // максимум зелий суммарно
+
+// Активные: одна на раунд, раз за бой. Используются в ходу боя.
+const ACTIVES = [
+    { id: 'a_scout', name: 'Наводчик', type: 'active',
+        desc: 'В этом раунде видна ставка врага ещё до твоего хода.' },
+    { id: 'a_delay', name: 'Волокита', type: 'active',
+        desc: 'В этом раунде вражеская ставка уменьшается на 30%.' },
+    { id: 'a_free', name: 'Свободный ход', type: 'active',
+        desc: 'Ставка в этом раунде не тратит монеты.' },
+    { id: 'a_surge', name: 'Взлёт', type: 'active',
+        desc: '+45% к эффективной ставке в этом раунде (без доплаты).' },
+    { id: 'a_allin', name: 'Ва-банк', type: 'active',
+        desc: '+70% к эффективной ставке, но сама ставка стоит в 1.5 раза дороже.' },
+    { id: 'a_rollback', name: 'Откат', type: 'active',
+        desc: 'Если раунд проигран — монеты ставки возвращаются полностью.' }
+];
+
+// Пассивные: работают весь бой, тоже под тактику (очки/монеты/возвраты).
+const PASSIVES = [
+    { id: 'p_firstfree', name: 'Даровой старт', type: 'passive',
+        desc: 'Первая ставка в каждом бою не тратит монеты.' },
+    { id: 'p_jeweler', name: 'Ставка мастера', type: 'passive',
+        desc: '+5 очков за выигранный раунд.' },
+    { id: 'p_counter', name: 'Костяшки', type: 'passive',
+        desc: '+4 очка за проигранный раунд.' },
+    { id: 'p_refund', name: 'Подушки', type: 'passive',
+        desc: 'Возвращает 35% ставки за проигранный раунд.' },
+    { id: 'p_income', name: 'Купюры', type: 'passive',
+        desc: '+8% монет в конце каждого раунда.' },
+    { id: 'p_pickpocket', name: 'Тонкие пальцы', type: 'passive',
+        desc: 'Украл 12 монет врага за выигранный раунд.' },
+    { id: 'p_biglot', name: 'Крупный лот', type: 'passive',
+        desc: '+7 очков за лоты от 40.' },
+    { id: 'p_tie', name: 'Последнее слово', type: 'passive',
+        desc: 'При равной ставке лот достаётся тебе.' }
+];
+
 function getAbility(id) {
     return ACTIVES.find(a => a.id === id) || PASSIVES.find(a => a.id === id) || null;
+}
+function hasPassive(run, id) {
+    return run.abilities.passive.some(a => a.id === id);
 }
 
 // ===========================================================================
@@ -383,23 +427,28 @@ function pushLog(run, text) {
 }
 
 // --- Генерация карты ---
-function rollNodeType(run, floor) {
+// Бой на этаже обязателен: без него не пройти. Пул — только боевые узлы.
+function rollCombatType(run, floor) {
+    const pool = [];
+    const add = (t, w) => { for (let i = 0; i < w; i++) pool.push(t); };
+    add('battle', 10);
+    if (floor >= 2) add('elite', run.act >= 2 ? 4 : 3);
+    return pick(run, pool);
+}
+
+// Служебные узлы — дают редкие/случайные выгоды, но боя не заменяют.
+function rollUtilityType(run) {
     const act = run.act;
     const pool = [];
     const add = (t, w) => { for (let i = 0; i < w; i++) pool.push(t); };
-    if (floor === 0) { add('battle', 10); }
-    else {
-        add('battle', 10);
-        add('event', 5);
-        add('rest', 4);
-        add('library', 3);
-        add('treasure', 3);
-        add('shop', act >= 2 ? 3 : 2);
-        add('forge', 2);
-        add('casino', act >= 2 ? 2 : 1);
-        if (floor >= 3) add('elite', act >= 2 ? 4 : 3);
-        if (floor >= 2) add('altar', 2);
-    }
+    add('event', 5);
+    add('rest', 3);
+    add('shop', act >= 2 ? 3 : 2);
+    add('treasure', 2);
+    add('forge', 2);
+    add('library', 2);
+    if (act >= 2) add('casino', 2);
+    add('altar', 2);
     return pick(run, pool);
 }
 
@@ -407,13 +456,16 @@ function generateMap(run) {
     const floors = [];
     for (let f = 0; f < ACT_FLOORS; f++) {
         if (f === ACT_FLOORS - 1) { floors.push([{ type: 'boss' }]); continue; }
-        const count = chance(run, 0.45) ? 3 : 2;
+        const count = chance(run, 0.5) ? 3 : 2;
         const types = [];
-        for (let i = 0; i < count; i++) {
-            let t = rollNodeType(run, f);
-            let guard = 0;
-            while (types.includes(t) && guard++ < 8) t = rollNodeType(run, f);
-            types.push(t);
+        // Первый узел этажа — всегда бой (обязательный путь)
+        types.push(rollCombatType(run, f));
+        let guard = 0;
+        while (types.length < count && guard++ < 25) {
+            // ~70% путей — снова бой, остальное — служебное
+            const t = chance(run, 0.7) ? rollCombatType(run, f) : rollUtilityType(run);
+            if (!types.includes(t)) types.push(t);
+            else if (guard > 12) { const u = rollUtilityType(run); if (!types.includes(u)) types.push(u); }
         }
         floors.push(types.map(t => ({ type: t, locked: t === 'treasure' && chance(run, 0.25) })));
     }
@@ -466,6 +518,7 @@ function acquireRelic(run, id, silent) {
     const def = RELIC_BY_ID[id];
     if (!def) return false;
     if (run.relics.includes(id) || run.curses.includes(id)) return false;
+    if (run.relics.length >= MAX_RELICS) return false; // предел коллекции
     run.relics.push(id);
     applyStat(run, def.stat, 1);
     if (!silent) pushLog(run, `Получена реликвия: ${def.icon || ''} ${def.name}.`);
@@ -500,7 +553,10 @@ function removeCurse(run) {
 }
 
 function addPotion(run, id) {
+    const total = Object.values(run.potions).reduce((s, c) => s + c, 0);
+    if (total >= MAX_POTIONS) return false; // лимит зелий
     run.potions[id] = (run.potions[id] || 0) + 1;
+    return true;
 }
 function usePotion(run, id) {
     if (!run.potions[id]) return { error: 'Нет такого зелья' };
@@ -589,7 +645,7 @@ function startCombat(run, tier) {
 
     const playerCoins = Math.max(5, base + m.startCoins);
     const eliteBonus = isElite ? 15 : isBoss ? (20 + run.act * 10) : 0;
-    const enemyCoins = Math.max(5, base + (enemy.coinsBonus || 0) + eliteBonus + (m.enemyCoinsBonus || 0) + run.ascension * 4 + (run.act - 1) * 10);
+    const enemyCoins = Math.max(5, base + (enemy.coinsBonus || 0) + eliteBonus + (m.enemyCoinsBonus || 0) + Math.round(run.ascension * 2) + (run.act - 1) * 10);
 
     run.battle = {
         tier,
@@ -701,87 +757,85 @@ function resolveRound(run) {
     const b = run.battle;
     const m = combatMods(run);
     const e = b.enemy;
-    const def = b.armedActive ? getAbility(b.armedActive) : null;
+    const armed = b.armedActive;
+    const logs = [];
+    const pBid = b.playerBid;
 
-    let pBid = b.playerBid;
-    let effP = pBid;
-    if (b.round <= 2) effP += m.bidBoostEarly;
-    if (b.round >= STAGE_ROUNDS) effP += m.bidBoostLate;
-    effP += m.bidBoost + (b.bonusBid || 0);
+    // --- Эффективная ставка игрока: плоские бонусы реликвий/событий, потом множители навыков
+    let flat = 0;
+    if (b.round <= 2) flat += m.bidBoostEarly;
+    if (b.round >= STAGE_ROUNDS) flat += m.bidBoostLate;
+    flat += m.bidBoost + (b.bonusBid || 0);
 
-    // «Интриган» и подобное: бесплатный рывок
-    let freeOverbidApplied = false;
     if (m.freeOverbid > 0 && !b.freeOverbidUsed) {
-        effP += m.freeOverbid;
+        flat += m.freeOverbid;
         b.freeOverbidUsed = true;
-        freeOverbidApplied = true;
+        logs.push(`Бесплатный рывок: +${m.freeOverbid} к ставке.`);
     }
 
-    // Активные способности, влияющие на ставку/очки
-    let reduction = false, doubleReward = false, smallWin = false, shield = false;
-    let freezeEnemy = false;
-    if (def) {
-        if (def.id === 'reduction') reduction = true;
-        if (def.id === 'double_reward') doubleReward = true;
-        if (def.id === 'small_win') smallWin = true;
-        if (def.id === 'shield') shield = true;
-        if (def.id === 'freeze') freezeEnemy = true;
-    }
+    let mult = 1;
+    if (armed === 'a_surge') mult = 1.45;
+    if (armed === 'a_allin') mult = 1.7;
+    const effP = Math.round((pBid + flat) * mult);
+    if (armed === 'a_surge') logs.push('Взлёт: ставка действует на 45% сильнее.');
+    if (armed === 'a_allin') logs.push('Ва-банк: ставка сильнее на 70%, но и стоит дороже.');
 
+    // --- Эффективная ставка врага (навык «Волокита» режет её)
     let effE = b.enemyBid;
-    if (!freezeEnemy) {
-        // специальные враги меняют исход, не ставку
-    }
+    if (armed === 'a_delay') { effE = Math.round(effE * 0.7); logs.push('Волокита: ставка врага ослаблена на 30%.'); }
 
-    // Стоимость ставки (переплата у «Гедониста/Палача»)
+    // --- Стоимость ставки (переплата у «Гедониста/Палача», наценка «Ва-банка»)
     let cost = pBid;
+    if (armed === 'a_allin') cost = Math.ceil(cost * 1.5);
     if (m.expensiveBid && pBid >= m.expensiveBid) cost += m.expensiveBidCost;
 
-    // Первая ставка бесплатна
+    let costFree = armed === 'a_free';
     let refundFirst = false;
-    if (m.firstBidFree && !b.firstBidUsed) { refundFirst = true; b.firstBidUsed = true; }
+    if (!costFree && (m.firstBidFree || hasPassive(run, 'p_firstfree')) && !b.firstBidUsed) {
+        refundFirst = true;
+        b.firstBidUsed = true;
+    }
 
-    const logs = [];
-    // Кто победил
+    // --- Кто победил
     let playerWins;
     if (effP > effE) playerWins = true;
     else if (effP < effE) playerWins = false;
-    else playerWins = m.tieWins; // ничья: «Хитрец» отдаёт игроку
+    else playerWins = !!(m.tieWins || hasPassive(run, 'p_tie')); // ничья в пользу игрока
 
-    // Списание монет
-    const spend = Math.max(0, cost - (refundFirst ? cost : 0));
+    // --- Списание монет
+    const spend = costFree || refundFirst ? 0 : cost;
     b.playerCoins = Math.max(0, b.playerCoins - spend);
     b.enemyCoins = Math.max(0, b.enemyCoins - b.enemyBid);
-    if (refundFirst) logs.push('Первая ставка бесплатна 🆓');
+    if (costFree) logs.push('Свободный ход: ставка не стоила монет 🆓');
+    else if (refundFirst) logs.push('Первая ставка бесплатна 🆓');
 
-    // Очки
+    // --- Очки
     let pPts = 0, ePts = 0;
     if (playerWins) {
         pPts = b.lot;
-        if (doubleReward) pPts *= 2;
-        if (smallWin && (b.lot === 10 || b.lot === 15)) pPts *= 2;
-        if (reduction) pPts = Math.floor(pPts / 2);
         pPts += m.winPoints;
-        if (m.bigLotPts && b.lot >= m.bigLotMin) pPts += m.bigLotPts;
+        if (hasPassive(run, 'p_jeweler')) pPts += 5;
+        let bigBonus = 0;
+        if (m.bigLotPts && b.lot >= m.bigLotMin) bigBonus = m.bigLotPts;
+        if (hasPassive(run, 'p_biglot') && b.lot >= 40) bigBonus = Math.max(bigBonus, 7);
+        if (bigBonus) pPts += bigBonus;
         if (m.smallBidPts && pBid <= m.smallBidMax && pBid > 0) pPts += m.smallBidPts;
         if (m.vulture && (effP - effE) >= 20) pPts += 6;
         pPts = Math.max(0, pPts);
         b.playerPoints += pPts;
     } else {
-        pPts = m.loseRoundPoints;
-        pPts = Math.max(0, pPts);
+        pPts = Math.max(0, m.loseRoundPoints + (hasPassive(run, 'p_counter') ? 4 : 0));
         b.playerPoints += pPts;
-        // возврат части проигранной ставки
-        if (m.bidRefundLosePct > 0 && pBid > 0) {
-            const back = Math.floor(pBid * m.bidRefundLosePct);
+        // возврат проигранной ставки: навык «Откат» возвращает всё, иначе процент
+        if (armed === 'a_rollback' && spend > 0) {
+            b.playerCoins += spend;
+            logs.push(`Откат: возвращено ${spend} монет.`);
+        } else if (spend > 0) {
+            const pct = Math.max(m.bidRefundLosePct, hasPassive(run, 'p_refund') ? 0.35 : 0);
+            const back = Math.floor(spend * pct);
             if (back > 0) { b.playerCoins += back; logs.push(`Возврат ${back} монет за проигрыш.`); }
         }
-        if (shield && pBid > 0) {
-            const back = Math.floor(pBid * 0.5);
-            if (back > 0) { b.playerCoins += back; logs.push(`Щит: возврат ${back} монет.`); }
-        }
     }
-    if (!playerWins && reduction) { /* сокращение относится к очкам победителя-врага */ }
 
     if (!playerWins) {
         ePts = b.lot;
@@ -796,17 +850,19 @@ function resolveRound(run) {
         }
     } else {
         // игрок захватил лот
-        if (m.stealOnWin) {
-            const steal = Math.min(m.stealOnWin, b.enemyCoins);
-            b.enemyCoins -= steal; b.playerCoins += steal;
-            if (steal) logs.push(`Кража: +${steal} монет.`);
+        const steal = Math.max(m.stealOnWin || 0, hasPassive(run, 'p_pickpocket') ? 12 : 0);
+        if (steal) {
+            const got = Math.min(steal, b.enemyCoins);
+            b.enemyCoins -= got; b.playerCoins += got;
+            if (got) logs.push(`Кража: +${got} монет.`);
         }
         if (m.winCoins) { b.playerCoins += m.winCoins; logs.push(`Бонус: +${m.winCoins} монет.`); }
     }
 
     // Доход в конце раунда (проценты от остатка)
-    if (m.endRoundIncomePct > 0) {
-        const inc = Math.floor(b.playerCoins * m.endRoundIncomePct);
+    const incomePct = Math.max(m.endRoundIncomePct, hasPassive(run, 'p_income') ? 0.08 : 0);
+    if (incomePct > 0) {
+        const inc = Math.floor(b.playerCoins * incomePct);
         if (inc > 0) { b.playerCoins += inc; logs.push(`Доход: +${inc} монет.`); }
     }
 
@@ -892,62 +948,80 @@ function endCombat(run) {
     return summary;
 }
 
-// --- Награда за бой ---
+// Награда за бой зависит от типа противника — так прогрессия не растекается:
+// обычные бои дают золото/починку, элиты — реликвии, боссы — реликвии и навыки.
 function buildBattleReward(run, tier) {
     const m = mods(run);
-    const baseGold = tier === 'boss' ? 60 + run.act * 20 : tier === 'elite' ? 40 : 20;
+    const baseGold = tier === 'boss' ? 60 + run.act * 20 : tier === 'elite' ? 40 : 22;
     let gold = Math.floor(baseGold * m.goldMult);
     if (m.loseGoldOnWin) gold = Math.max(0, gold - m.loseGoldOnWin);
     addGold(run, gold);
     run.hp = clamp(run.hp + m.healOnWin, 0, run.maxHp);
     if (m.potionChance && chance(run, m.potionChance)) addPotion(run, pick(run, POTIONS).id);
 
-    const options = buildRewardOptions(run, m.extraRewardOption ? 4 : 3);
+    let pool;
+    if (tier === 'boss') pool = ['relic', 'ability', 'gold', 'heal', 'maxhp'];
+    else if (tier === 'elite') pool = ['relic', 'gold', 'heal', 'potion', 'maxhp'];
+    else pool = ['gold', 'heal', 'potion', 'maxhp'];
+
+    const count = 3 + (m.extraRewardOption ? 1 : 0);
+    const guaranteed = tier === 'boss' ? ['relic', 'ability'] : tier === 'elite' ? ['relic'] : [];
+    const options = buildRewardOptions(run, pool, count, guaranteed);
     run.reward = { gold, options, kind: 'battle', tier };
     run.battle = null;
     run.screen = 'reward';
 }
 
-function buildRewardOptions(run, count) {
+function buildRewardOptions(run, pool, count, guaranteed) {
     const options = [];
-    const usedTypes = {};
-    const tryAdd = (type) => {
-        if (usedTypes[type]) return false;
-        usedTypes[type] = true;
+    const hasFreeAbility = () => run.abilities.active.length < MAX_ACTIVE || run.abilities.passive.length < MAX_PASSIVE;
+    const make = (type) => {
         if (type === 'relic') {
-            const pool = RELICS.filter(r => !r.hero && !run.relics.includes(r.id));
-            if (!pool.length) return false;
-            const r = weightedRelic(run, pool);
-            options.push({ kind: 'relic', id: r.id, name: r.name, icon: r.icon, desc: r.desc, rarity: r.rarity });
-        } else if (type === 'ability') {
+            if (run.relics.length >= MAX_RELICS) return null;
+            const relicPool = RELICS.filter(r => !r.hero && !run.relics.includes(r.id));
+            if (!relicPool.length) return null;
+            const r = weightedRelic(run, relicPool);
+            return { kind: 'relic', id: r.id, name: r.name, icon: r.icon, desc: r.desc, rarity: r.rarity };
+        }
+        if (type === 'ability') {
+            if (!hasFreeAbility()) return null;
             const opts = rollAbilityOptions(run, 1);
-            if (!opts.length) return false;
+            if (!opts.length) return null;
             const a = opts[0];
-            options.push({ kind: 'ability', id: a.id, name: a.name, desc: a.desc, target: a.target });
-        } else if (type === 'potion') {
+            return { kind: 'ability', id: a.id, name: a.name, desc: a.desc };
+        }
+        if (type === 'potion') {
+            const total = Object.values(run.potions).reduce((s, c) => s + c, 0);
+            if (total >= MAX_POTIONS) return null;
             const p = pick(run, POTIONS);
-            options.push({ kind: 'potion', id: p.id, name: p.name, icon: p.icon, desc: p.desc });
-        } else if (type === 'heal') {
-            options.push({ kind: 'heal', amount: 30, name: 'Отдых', icon: '❤️', desc: '+30 репутации.' });
-        } else if (type === 'gold') {
-            options.push({ kind: 'gold', amount: 30, name: 'Золото', icon: '💰', desc: '+30 золота.' });
-        } else if (type === 'maxhp') {
-            options.push({ kind: 'maxhp', amount: 8, name: 'Стойкость', icon: '💪', desc: '+8 к макс. репутации.' });
+            return { kind: 'potion', id: p.id, name: p.name, icon: p.icon, desc: p.desc };
         }
-        return true;
+        if (type === 'heal') {
+            if (run.hp >= run.maxHp) return null;
+            return { kind: 'heal', amount: 30, name: 'Отдых', icon: '❤️', desc: '+30 репутации.' };
+        }
+        if (type === 'gold') return { kind: 'gold', amount: 35, name: 'Золото', icon: '💰', desc: '+35 золота.' };
+        if (type === 'maxhp') return { kind: 'maxhp', amount: 8, name: 'Стойкость', icon: '💪', desc: '+8 к макс. репутации.' };
+        return null;
     };
-    const order = ['relic', 'ability', 'potion', 'gold', 'heal', 'maxhp'];
-    const bag = shuffle(run, order);
-    for (let i = 0; options.length < count && i < 20; i++) {
-        tryAdd(bag[i % bag.length]);
+    // Приоритетные варианты (элита/босс) идут первыми, если позволяют лимиты
+    (guaranteed || []).forEach(kind => {
+        if (options.length >= count) return;
+        if (!pool.includes(kind)) return;
+        const o = make(kind);
+        if (o) options.push(o);
+    });
+
+    const used = new Set(options.map(o => o.kind));
+    const bag = shuffle(run, pool.filter(k => !used.has(k)));
+    for (let i = 0; i < bag.length && options.length < count; i++) {
+        const o = make(bag[i]);
+        if (o) options.push(o);
     }
-    // Гарантируем хотя бы одну реликвию, если есть
-    if (!options.some(o => o.kind === 'relic')) {
-        const pool = RELICS.filter(r => !r.hero && !run.relics.includes(r.id));
-        if (pool.length) {
-            const r = weightedRelic(run, pool);
-            options[0] = { kind: 'relic', id: r.id, name: r.name, icon: r.icon, desc: r.desc, rarity: r.rarity };
-        }
+    let guard = 0;
+    while (options.length < count && guard++ < 30) {
+        const o = make(bag[guard % bag.length]);
+        if (o && !options.some(x => x.kind === o.kind && x.id === o.id)) options.push(o);
     }
     return options;
 }
@@ -971,9 +1045,9 @@ function chooseReward(run, index) {
 }
 
 function grantOption(run, opt) {
-    if (opt.kind === 'relic') acquireRelic(run, opt.id);
-    else if (opt.kind === 'ability') addAbility(run, opt.id);
-    else if (opt.kind === 'potion') addPotion(run, opt.id);
+    if (opt.kind === 'relic') { if (!acquireRelic(run, opt.id)) addGold(run, 40); }
+    else if (opt.kind === 'ability') { if (!addAbility(run, opt.id)) addGold(run, 35); }
+    else if (opt.kind === 'potion') { if (!addPotion(run, opt.id)) addGold(run, 15); }
     else if (opt.kind === 'heal') run.hp = clamp(run.hp + opt.amount, 0, run.maxHp);
     else if (opt.kind === 'gold') addGold(run, opt.amount);
     else if (opt.kind === 'maxhp') { run.maxHp += opt.amount; run.hp += opt.amount; }
@@ -983,10 +1057,10 @@ function addAbility(run, id) {
     const def = getAbility(id);
     if (!def) return false;
     if (def.type === 'active') {
-        if (run.abilities.active.length >= 4) { run.pendingSwap = { type: 'active', id, source: 'ability' }; return false; }
+        if (run.abilities.active.length >= MAX_ACTIVE) return false; // слоты заняты
         run.abilities.active.push({ id });
     } else {
-        if (run.abilities.passive.length >= 6) { run.pendingSwap = { type: 'passive', id, source: 'ability' }; return false; }
+        if (run.abilities.passive.length >= MAX_PASSIVE) return false;
         run.abilities.passive.push({ id });
     }
     return true;
@@ -1052,8 +1126,13 @@ function finishRun(run, victory) {
 function rollAbilityOptions(run, count) {
     const owned = new Set(run.abilities.active.map(a => a.id).concat(run.abilities.passive.map(a => a.id)));
     const pool = ACTIVES.concat(PASSIVES).filter(a => !owned.has(a.id));
+    const activeFull = run.abilities.active.length >= MAX_ACTIVE;
+    const passiveFull = run.abilities.passive.length >= MAX_PASSIVE;
+    const fits = a => (a.type === 'active' && !activeFull) || (a.type === 'passive' && !passiveFull);
     const shuffled = shuffle(run, pool);
-    return shuffled.slice(0, count || 3).map(a => ({
+    // сначала те, что влезут без замены, потом остальные
+    const order = shuffled.filter(fits).concat(shuffled.filter(a => !fits(a)));
+    return order.slice(0, count || 3).map(a => ({
         id: a.id, name: a.name, desc: a.desc, type: a.type, target: !!a.target
     }));
 }
@@ -1063,23 +1142,41 @@ function libraryChoose(run, abilityId) {
     const ok = run.library.options.find(o => o.id === abilityId);
     if (!ok) return { error: 'Нет такой способности' };
     const def = getAbility(abilityId);
-    // если слоты нужного типа переполнены — заменяем случайную способность того же типа
-    if (def && def.type === 'active' && run.abilities.active.length >= 4) {
-        const idx = ri(run, 0, run.abilities.active.length - 1);
-        run.abilities.active[idx] = { id: abilityId };
-        pushLog(run, `Библиотека: заменена способность на «${ok.name}».`);
-    } else if (def && def.type === 'passive' && run.abilities.passive.length >= 6) {
-        const idx = ri(run, 0, run.abilities.passive.length - 1);
-        run.abilities.passive[idx] = { id: abilityId };
-        pushLog(run, `Библиотека: заменена способность на «${ok.name}».`);
-    } else if (!addAbility(run, abilityId)) {
-        return { error: 'Нет свободного слота. Перековка доступна в кузнице.', needSwap: true };
-    } else {
-        pushLog(run, `Изучена способность: ${ok.name}.`);
+    const type = def ? def.type : 'passive';
+    const list = type === 'active' ? run.abilities.active : run.abilities.passive;
+    const cap = type === 'active' ? MAX_ACTIVE : MAX_PASSIVE;
+    if (list.length >= cap) {
+        // слоты заняты — игрок сам выбирает, что заменить
+        run.swap = { type, newId: abilityId, newName: ok.name, newDesc: ok.desc, source: 'library' };
+        return { ok: true, needSwap: true };
     }
+    list.push({ id: abilityId });
+    pushLog(run, `Изучена способность: ${ok.name}.`);
     run.library = null;
     run.screen = 'map';
     advanceFloor(run);
+    return { ok: true };
+}
+
+function swapAbility(run, oldId) {
+    if (!run.swap) return { error: 'Нечего заменять' };
+    const sw = run.swap;
+    const list = sw.type === 'active' ? run.abilities.active : run.abilities.passive;
+    const idx = list.findIndex(a => a.id === oldId);
+    if (idx < 0) return { error: 'Нет такой способности' };
+    const oldDef = getAbility(oldId);
+    list[idx] = { id: sw.newId };
+    pushLog(run, `Замена: ${(oldDef || {}).name} → ${sw.newName}.`);
+    run.swap = null;
+    run.library = null;
+    run.screen = 'map';
+    advanceFloor(run);
+    return { ok: true };
+}
+
+function swapCancel(run) {
+    if (!run.swap) return { error: 'Нечего отменять' };
+    run.swap = null;
     return { ok: true };
 }
 
@@ -1158,12 +1255,14 @@ function startTreasure(run, node) {
     run.screen = 'treasure';
     // если не заперт — сразу выдаём
     if (!node.locked) {
-        const r = weightedRelic(run, RELICS.filter(x => !x.hero && !run.relics.includes(x.id)));
+        const r = run.relics.length >= MAX_RELICS ? null
+            : weightedRelic(run, RELICS.filter(x => !x.hero && !run.relics.includes(x.id)));
         if (r) acquireRelic(run, r.id);
+        else addGold(run, 50);
         const trapped = chance(run, 0.2) && run.curses.length < 6;
         if (trapped) addCurse(run);
         run.treasure.opened = true;
-        run.treasure.got = r ? { name: r.name, icon: r.icon } : null;
+        run.treasure.got = r ? { name: r.name, icon: r.icon } : { name: 'Золотая пыль', icon: '💰' };
         run.treasure.trapped = trapped;
     }
 }
@@ -1174,10 +1273,12 @@ function treasureTake(run) {
         // запертый сундук: вскрываем ценой 15 репутации; при нехватке — просто уходим
         if (run.hp > 20) {
             run.hp -= 15;
-            const r = weightedRelic(run, RELICS.filter(x => !x.hero && !run.relics.includes(x.id)));
+            const r = run.relics.length >= MAX_RELICS ? null
+                : weightedRelic(run, RELICS.filter(x => !x.hero && !run.relics.includes(x.id)));
             if (r) acquireRelic(run, r.id);
+            else addGold(run, 50);
             run.treasure.opened = true;
-            run.treasure.got = r ? { name: r.name, icon: r.icon } : null;
+            run.treasure.got = r ? { name: r.name, icon: r.icon } : { name: 'Золотая пыль', icon: '💰' };
             pushLog(run, 'Запертый сундук вскрыт ценой 15 репутации.');
         } else {
             pushLog(run, 'Слишком мало репутации — запертый сундук оставлен.');
@@ -1227,14 +1328,17 @@ function applyEffects(run, effects) {
             case 'heal': run.hp = clamp(run.hp + e.v, 0, run.maxHp); break;
             case 'relic': {
                 const pool = RELICS.filter(r => !r.hero && !run.relics.includes(r.id));
+                if (run.relics.length >= MAX_RELICS) { addGold(run, 40); break; } // коллекция полна
                 if (pool.length) acquireRelic(run, weightedRelic(run, pool).id);
+                else addGold(run, 40);
                 break;
             }
             case 'curse': addCurse(run); break;
-            case 'potion': addPotion(run, pick(run, POTIONS).id); break;
+            case 'potion': if (!addPotion(run, pick(run, POTIONS).id)) addGold(run, 15); break;
             case 'ability': {
                 const opts = rollAbilityOptions(run, 1);
-                if (opts.length) addAbility(run, opts[0].id);
+                if (opts.length && !addAbility(run, opts[0].id)) addGold(run, 35);
+                else if (!opts.length) addGold(run, 35);
                 break;
             }
             case 'removeCurse': removeCurse(run); break;
@@ -1265,17 +1369,24 @@ function applyEffects(run, effects) {
 function openShop(run) {
     const pool = [];
     const usedRelic = new Set();
-    for (let i = 0; i < 3; i++) {
-        const available = RELICS.filter(r => !r.hero && !run.relics.includes(r.id) && !usedRelic.has(r.id));
-        if (!available.length) break;
-        const r = weightedRelic(run, available);
-        usedRelic.add(r.id);
-        const price = Math.round((r.rarity === 'legendary' ? 90 : r.rarity === 'epic' ? 70 : r.rarity === 'rare' ? 50 : 30) * shopDiscount(run));
-        pool.push({ kind: 'relic', id: r.id, name: r.name, icon: r.icon, desc: r.desc, rarity: r.rarity, price });
+    const relicsFree = run.relics.length < MAX_RELICS;
+    const potTotal = () => Object.values(run.potions).reduce((s, c) => s + c, 0);
+    if (relicsFree) {
+        for (let i = 0; i < 3; i++) {
+            const available = RELICS.filter(r => !r.hero && !run.relics.includes(r.id) && !usedRelic.has(r.id));
+            if (!available.length) break;
+            const r = weightedRelic(run, available);
+            usedRelic.add(r.id);
+            const price = Math.round((r.rarity === 'legendary' ? 90 : r.rarity === 'epic' ? 70 : r.rarity === 'rare' ? 50 : 30) * shopDiscount(run));
+            pool.push({ kind: 'relic', id: r.id, name: r.name, icon: r.icon, desc: r.desc, rarity: r.rarity, price });
+        }
     }
-    const pot = pick(run, POTIONS);
-    pool.push({ kind: 'potion', id: pot.id, name: pot.name, icon: pot.icon, desc: pot.desc, price: Math.round(25 * shopDiscount(run)) });
+    if (potTotal() < MAX_POTIONS) {
+        const pot = pick(run, POTIONS);
+        pool.push({ kind: 'potion', id: pot.id, name: pot.name, icon: pot.icon, desc: pot.desc, price: Math.round(25 * shopDiscount(run)) });
+    }
     pool.push({ kind: 'heal', amount: 35, name: 'Отдых', icon: '❤️', desc: '+35 репутации.', price: Math.round(30 * shopDiscount(run)) });
+    pool.push({ kind: 'gold', amount: 55, name: 'Подачка', icon: '💰', desc: '+55 золота (но дорого).', price: Math.round(50 * shopDiscount(run)) });
     if (run.curses.length) pool.push({ kind: 'removeCurse', name: 'Снятие проклятия', icon: '🕊️', desc: 'Убрать одно проклятие.', price: Math.round(45 * shopDiscount(run)) });
     run.shop = { stock: pool, done: false };
     run.screen = 'shop';
@@ -1286,12 +1397,20 @@ function shopBuy(run, index) {
     const item = run.shop.stock[index];
     if (!item || item.sold) return { error: 'Товар недоступен' };
     if (run.gold < item.price) return { error: 'Недостаточно золота' };
-    if (item.kind === 'relic' && run.relics.includes(item.id)) return { error: 'Уже есть' };
+    if (item.kind === 'relic') {
+        if (run.relics.includes(item.id)) return { error: 'Уже есть' };
+        if (run.relics.length >= MAX_RELICS) return { error: 'Слишком много реликвий' };
+    }
+    if (item.kind === 'potion') {
+        const total = Object.values(run.potions).reduce((s, c) => s + c, 0);
+        if (total >= MAX_POTIONS) return { error: 'Слишком много зелий' };
+    }
     addGold(run, -item.price);
     item.sold = true;
     if (item.kind === 'relic') acquireRelic(run, item.id);
     else if (item.kind === 'potion') addPotion(run, item.id);
     else if (item.kind === 'heal') run.hp = clamp(run.hp + item.amount, 0, run.maxHp);
+    else if (item.kind === 'gold') addGold(run, item.amount);
     else if (item.kind === 'removeCurse') removeCurse(run);
     return { ok: true };
 }
@@ -1307,15 +1426,21 @@ function shopLeave(run) {
 // --- Алтарь ---
 function altarAction(run, action) {
     if (run.screen !== 'altar' || !run.altar) return { error: 'Сейчас не алтарь' };
+    const full = () => run.relics.length >= MAX_RELICS;
+    const rollAltarRelic = () => {
+        const pool = RELICS.filter(r => !r.hero && !run.relics.includes(r.id));
+        if (full() || !pool.length) { addGold(run, 50); return false; }
+        acquireRelic(run, weightedRelic(run, pool).id);
+        return true;
+    };
     if (action === 'blood') {
         if (run.hp <= 20) return { error: 'Слишком мало репутации' };
         run.hp -= 15;
-        const pool = RELICS.filter(r => !r.hero && !run.relics.includes(r.id));
-        if (pool.length) acquireRelic(run, weightedRelic(run, pool).id);
+        if (!rollAltarRelic()) pushLog(run, 'Коллекция полна — жертва принята в золоте.');
     } else if (action === 'gold') {
-        const pool = RELICS.filter(r => !r.hero && !run.relics.includes(r.id));
-        if (pool.length) acquireRelic(run, weightedRelic(run, pool).id);
+        if (run.gold < 40) return { error: 'Недостаточно золота' };
         addGold(run, -40);
+        if (!rollAltarRelic()) pushLog(run, 'Коллекция полна — алтарь вернул золото.');
     } else if (action === 'sacrifice') {
         const pool = run.relics.filter(id => RELIC_BY_ID[id] && !RELIC_BY_ID[id].hero);
         if (!pool.length) return { error: 'Нет реликвий для жертвы' };
@@ -1324,8 +1449,7 @@ function altarAction(run, action) {
         addGold(run, 60);
     } else if (action === 'curse') {
         addCurse(run);
-        const pool = RELICS.filter(r => !r.hero && !run.relics.includes(r.id));
-        if (pool.length) acquireRelic(run, weightedRelic(run, pool).id);
+        rollAltarRelic();
     } else if (action === 'leave') {
         // просто уйти
     } else return { error: 'Неизвестное действие' };
@@ -1359,6 +1483,17 @@ function casinoLeave(run) {
     return { ok: true };
 }
 
+function enemyTell(e) {
+    if (e.flags.mirror) return '🪞 Повторяет твою прошлую ставку';
+    if (e.flags.spy) return '👁 Держит твой прошлый уровень (+1)';
+    if (e.flags.manic) return '🎲 Непредсказуем: ставки скачут';
+    if (e.flags.philosopher) return '🤔 Пропускает дешёвые лоты (до 25)';
+    if (e.flags.snob) return '🎩 Округляет ставки до 5';
+    if (e.aggr >= 0.62) return '🔥 Агрессивен — попробует перебить';
+    if (e.aggr <= 0.34) return '🪙 Скуп — редко рискует';
+    return '⚖ Играет ровно';
+}
+
 // ===========================================================================
 //  ИНТЕРФЕЙС ПРЕДСТАВЛЕНИЯ (что видит клиент)
 // ===========================================================================
@@ -1377,6 +1512,8 @@ function view(run) {
         hp: run.hp,
         maxHp: run.maxHp,
         gold: Math.floor(run.gold),
+        limits: { relics: MAX_RELICS, active: MAX_ACTIVE, passive: MAX_PASSIVE, potions: MAX_POTIONS },
+        potionCount: Object.values(run.potions).reduce((s, c) => s + c, 0),
         potions: Object.keys(run.potions).map(id => ({ id, count: run.potions[id], ...POTION_BY_ID[id] })),
         relics: run.relics.map(id => {
             const r = RELIC_BY_ID[id];
@@ -1412,9 +1549,14 @@ function view(run) {
 
     if (run.screen === 'combat' && run.battle) {
         const b = run.battle;
+        const reveal = b.armedActive === 'a_scout';
+        let effFlat = m.bidBoost + (b.bonusBid || 0);
+        if (b.round <= 2) effFlat += m.bidBoostEarly;
+        if (b.round >= STAGE_ROUNDS) effFlat += m.bidBoostLate;
+        if (m.freeOverbid > 0 && !b.freeOverbidUsed) effFlat += m.freeOverbid;
         base.battle = {
             tier: b.tier,
-            enemy: { name: b.enemy.name, icon: b.enemy.icon, flags: Object.keys(b.enemy.flags || {}) },
+            enemy: { name: b.enemy.name, icon: b.enemy.icon, flags: Object.keys(b.enemy.flags || {}), tell: enemyTell(b.enemy) },
             round: b.round,
             maxRounds: STAGE_ROUNDS,
             lot: b.blind ? null : b.lot,
@@ -1424,9 +1566,13 @@ function view(run) {
             playerPoints: b.playerPoints,
             enemyPoints: b.enemyPoints,
             bonusBid: b.bonusBid || 0,
+            effFlat,
             armedActive: b.armedActive ? (getAbility(b.armedActive) || {}).name : null,
+            armedActiveId: b.armedActive || null,
+            scoutReveal: reveal,
+            enemyBid: reveal ? b.enemyBid : null,
             activeUsable: run.abilities.active.filter(a => !b.usedThisBattle.includes(a.id))
-                .map(a => { const d = getAbility(a.id); return { id: a.id, name: d.name, desc: d.desc, target: !!d.target }; }),
+                .map(a => { const d = getAbility(a.id); return { id: a.id, name: d.name, desc: d.desc }; }),
             hasBid: b.playerBid !== null,
             log: b.logs.slice(-8)
         };
@@ -1438,6 +1584,16 @@ function view(run) {
     if (run.screen === 'treasure' && run.treasure) base.treasure = run.treasure;
     if (run.screen === 'forge' && run.forge) base.forge = { done: run.forge.done };
     if (run.screen === 'library' && run.library) base.library = { options: run.library.options };
+    if (run.swap) {
+        const list = run.swap.type === 'active' ? run.abilities.active : run.abilities.passive;
+        base.swap = {
+            type: run.swap.type,
+            newId: run.swap.newId,
+            newName: run.swap.newName,
+            newDesc: run.swap.newDesc,
+            candidates: list.map(a => { const d = getAbility(a.id); return d ? { id: a.id, name: d.name, desc: d.desc } : null; }).filter(Boolean)
+        };
+    }
     if (run.screen === 'altar') base.altar = { done: false };
     if (run.screen === 'casino' && run.casino) base.casino = { lastResult: run.casino.lastResult };
     if (run.screen === 'rest') base.rest = { done: false };
@@ -1517,7 +1673,11 @@ function simulateRun(opts) {
         } else if (s === 'library') {
             if (run.library.options.length) {
                 const r = libraryChoose(run, run.library.options[0].id);
-                if (r.error) { addGold(run, 25); run.library = null; run.screen = 'map'; advanceFloor(run); }
+                if (run.swap) {
+                    const list = run.swap.type === 'active' ? run.abilities.active : run.abilities.passive;
+                    if (list.length) swapAbility(run, pick(run, list).id);
+                    else { swapCancel(run); run.library = null; run.screen = 'map'; advanceFloor(run); }
+                } else if (r.error) { addGold(run, 25); run.library = null; run.screen = 'map'; advanceFloor(run); }
             } else { run.library = null; run.screen = 'map'; advanceFloor(run); }
         } else if (s === 'altar') {
             altarAction(run, run.hp > 60 ? 'blood' : 'curse');
@@ -1538,8 +1698,8 @@ function simulateRun(opts) {
 //  SOCKET-СЛОЙ
 // ===========================================================================
 function configure(deps) {
-    ACTIVES = ((deps && deps.ACTIVE_ABILITIES) || []).map(a => Object.assign({ type: 'active' }, a));
-    PASSIVES = ((deps && deps.PASSIVE_ABILITIES) || []).map(a => Object.assign({ type: 'passive' }, a));
+    // Способности «Забега» теперь собственные и статичны — зависимость от
+    // основной игры больше не нужна. Оставлено для совместимости вызова.
 }
 
 function attachRoguelike(io, deps) {
@@ -1611,6 +1771,21 @@ function attachRoguelike(io, deps) {
             if (!run) return;
             const r = libraryChoose(run, abilityId);
             if (r.error) return socket.emit('rlError', r.error);
+            emitState(socket, run);
+        });
+
+        socket.on('rlSwapConfirm', ({ oldId }) => {
+            const run = runs[socket.id];
+            if (!run) return;
+            const r = swapAbility(run, oldId);
+            if (r.error) return socket.emit('rlError', r.error);
+            emitState(socket, run);
+        });
+
+        socket.on('rlSwapCancel', () => {
+            const run = runs[socket.id];
+            if (!run) return;
+            swapCancel(run);
             emitState(socket, run);
         });
 
@@ -1736,6 +1911,9 @@ module.exports = {
     chooseReward,
     libraryChoose,
     libraryLeave,
+    addAbility,
+    acquireRelic,
+    addPotion,
     forgeChoose,
     forgeLeave,
     restAction,
@@ -1747,8 +1925,11 @@ module.exports = {
     altarAction,
     casinoBet,
     casinoLeave,
+    swapAbility,
+    swapCancel,
     simulateRun,
     autoPlayerBid,
     view,
-    HEROES, RELICS, CURSES, POTIONS, EVENTS, ENEMIES, BOSSES, NODE_META, ACTS
+    HEROES, RELICS, CURSES, POTIONS, EVENTS, ENEMIES, BOSSES, NODE_META, ACTS,
+    ACTIVES, PASSIVES, MAX_RELICS, MAX_ACTIVE, MAX_PASSIVE, MAX_POTIONS
 };

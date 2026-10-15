@@ -3,200 +3,468 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#141018">
+    <meta name="theme-color" content="#0a0c11">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%3E%3Crect%20width='100'%20height='100'%20rx='20'%20fill='%23141018'/%3E%3Ctext%20x='50'%20y='70'%20font-size='56'%20text-anchor='middle'%3E%F0%9F%8E%B2%3C/text%3E%3C/svg%3E">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%3E%3Crect%20width='100'%20height='100'%20rx='22'%20fill='%230a0c11'/%3E%3Ctext%20x='50'%20y='72'%20font-size='56'%20text-anchor='middle'%3E%F0%9F%8E%B2%3C/text%3E%3C/svg%3E">
     <title>LOTS — Забег</title>
     <style>
         * { box-sizing: border-box; }
+
+        :root {
+            --bg: #0a0c11;
+            --bg-2: #0e1118;
+            --panel: #141822;
+            --panel-2: #181d29;
+            --line: #262c3c;
+            --line-2: #333b52;
+            --gold: #e9b949;
+            --gold-hi: #f7d97c;
+            --ink: #e8ebf2;
+            --muted: #8b90a3;
+            --jade: #58c89a;
+            --crimson: #d9534f;
+            --blue: #5b93d3;
+            --purple: #a97fd8;
+            --orange: #e5964f;
+        }
+
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: radial-gradient(circle at 50% 0%, #241b2e 0%, #141018 60%);
-            color: #f0e9f5;
+            font-family: system-ui, 'Segoe UI', Tahoma, sans-serif;
+            background:
+                radial-gradient(900px 500px at 50% -10%, rgba(233,185,73,.10), transparent 60%),
+                radial-gradient(700px 500px at 100% 100%, rgba(91,147,211,.07), transparent 60%),
+                var(--bg);
+            color: var(--ink);
             margin: 0;
             min-height: 100vh;
             display: flex;
             justify-content: center;
-            padding: 12px 12px 90px;
+            padding: 14px 12px 80px;
+            letter-spacing: .2px;
         }
-        .wrap { width: 100%; max-width: 720px; }
-        h1 { color: #ffca28; text-align: center; margin: 6px 0 2px; letter-spacing: 2px; }
-        .sub { text-align: center; color: #a99bc0; font-size: 13px; margin-bottom: 14px; }
-        h2 { color: #ffca28; font-size: 20px; margin: 10px 0; }
-        h3 { font-size: 15px; margin: 12px 0 6px; color: #d9c9ee; }
+        .wrap { width: 100%; max-width: 760px; }
         .hidden { display: none !important; }
 
-        button {
-            font-family: inherit;
-            cursor: pointer;
-            border: none;
-            border-radius: 8px;
-            background: #ffca28;
-            color: #1a1220;
-            font-weight: bold;
-            font-size: 15px;
-            padding: 11px 14px;
-            min-height: 44px;
-            margin: 4px 0;
+        /* ---------- Типографика / заголовки ---------- */
+        .brand { text-align: center; margin: 6px 0 4px; }
+        .brand-mark {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 12px; letter-spacing: 7px; color: var(--muted);
+            text-transform: uppercase;
         }
-        button:hover { filter: brightness(1.08); }
-        button:disabled { opacity: .45; cursor: not-allowed; }
-        .btn-sec { background: #3a3145; color: #f0e9f5; }
-        .btn-ghost { background: transparent; border: 1px solid #55486a; color: #cbbde0; }
-        .btn-danger { background: #e53935; color: #fff; }
-        .btn-sm { font-size: 13px; padding: 6px 10px; min-height: 34px; }
+        .brand-title {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 46px; margin: 2px 0 0; letter-spacing: 8px; font-weight: 700;
+            background: linear-gradient(180deg, var(--gold-hi) 10%, var(--gold) 55%, #a97a1e 100%);
+            -webkit-background-clip: text; background-clip: text; color: transparent;
+            text-transform: uppercase; line-height: 1;
+        }
+        .brand-sub { font-size: 11px; letter-spacing: 5px; color: var(--muted); text-transform: uppercase; margin-top: 6px; }
+        .topline {
+            text-align: center; font-size: 12px; color: var(--muted); letter-spacing: 2px;
+            text-transform: uppercase; margin: 10px 0 16px;
+        }
+        h2.sect {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 20px; letter-spacing: 3px; text-transform: uppercase;
+            color: var(--gold); margin: 0 0 8px; display: flex; align-items: center; gap: 8px;
+        }
+        h3.lbl {
+            font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+            color: var(--muted); margin: 0 0 10px; font-weight: 600;
+        }
+
+        /* ---------- Кнопки ---------- */
+        button {
+            font-family: inherit; cursor: pointer;
+            border: 1px solid transparent;
+            border-radius: 10px;
+            background: linear-gradient(180deg, var(--gold-hi), var(--gold));
+            color: #16120a;
+            font-weight: 700; font-size: 15px;
+            padding: 12px 16px; min-height: 46px;
+            letter-spacing: .4px;
+            transition: transform .08s ease, filter .12s ease, box-shadow .12s ease;
+            box-shadow: 0 6px 18px rgba(233,185,73,.16);
+        }
+        button:hover { filter: brightness(1.06); transform: translateY(-1px); }
+        button:active { transform: translateY(0); }
+        button:disabled { opacity: .4; cursor: not-allowed; transform: none; box-shadow: none; }
+        .btn-sec {
+            background: var(--panel-2); color: var(--ink);
+            border: 1px solid var(--line-2); box-shadow: none;
+        }
+        .btn-ghost { background: transparent; color: var(--muted); border: 1px dashed var(--line-2); box-shadow: none; }
+        .btn-danger { background: linear-gradient(180deg, #e5726e, var(--crimson)); color: #fff; box-shadow: 0 6px 18px rgba(217,83,79,.18); }
+        .btn-sm { font-size: 13px; padding: 8px 11px; min-height: 36px; border-radius: 8px; }
+        .btn-wide { width: 100%; }
         .row { display: flex; gap: 8px; flex-wrap: wrap; }
         .grow { flex: 1 1 auto; }
 
+        /* ---------- Панели / карточки ---------- */
         .panel {
-            background: #1f1a29;
-            border: 1px solid #352c45;
-            border-radius: 12px;
-            padding: 12px;
+            background: linear-gradient(180deg, var(--panel-2), var(--panel));
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            padding: 14px;
             margin: 10px 0;
+            box-shadow: 0 12px 30px rgba(0,0,0,.35);
+            position: relative;
+            overflow: hidden;
         }
-        .muted { color: #a99bc0; font-size: 12px; }
-        .err { color: #ff6b6b; font-weight: bold; min-height: 18px; font-size: 13px; }
+        .panel::before {
+            content: ''; position: absolute; inset: 0 auto auto 0; width: 100%; height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(233,185,73,.35), transparent);
+        }
+        .panel.flat::before { display: none; }
+        .muted { color: var(--muted); font-size: 12px; line-height: 1.5; }
+        .stat-line { font-size: 13.5px; color: #c8cddb; margin: 4px 0; }
+        .stat-line b { color: var(--gold-hi); }
+        .err { color: #ff7b74; font-weight: 600; min-height: 18px; font-size: 13px; }
+        .divider { height: 1px; background: var(--line); margin: 12px 0; }
+        .pill {
+            display: inline-block; background: rgba(233,185,73,.08);
+            border: 1px solid rgba(233,185,73,.4); color: var(--gold-hi);
+            border-radius: 999px; padding: 3px 10px; font-size: 11px; letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+        .kbd { color: var(--gold-hi); font-weight: 700; }
 
-        /* HUD */
+        .card-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
+        @media (min-width: 560px) { .card-grid { grid-template-columns: 1fr 1fr; } }
+
+        .card {
+            background: linear-gradient(180deg, #1a2030, #151a27);
+            border: 1px solid var(--line-2);
+            border-radius: 12px;
+            padding: 13px; cursor: pointer;
+            transition: transform .1s ease, border-color .12s ease, box-shadow .12s ease;
+            position: relative;
+        }
+        .card:hover { transform: translateY(-2px); border-color: rgba(233,185,73,.6); box-shadow: 0 10px 24px rgba(0,0,0,.4); }
+        .card .c-title { font-weight: 700; color: var(--gold-hi); font-size: 15px; display: flex; gap: 8px; align-items: center; }
+        .card .c-desc { font-size: 13px; color: #b9bfd0; margin-top: 5px; line-height: 1.45; }
+        .card .c-price { color: var(--jade); font-weight: 700; margin-top: 8px; font-size: 13px; letter-spacing: .5px; }
+        .card.sold, .card.locked { opacity: .42; pointer-events: none; }
+        .card.rarity-common { border-left: 3px solid #4a5265; }
+        .card.rarity-rare { border-left: 3px solid var(--blue); }
+        .card.rarity-epic { border-left: 3px solid var(--purple); }
+        .card.rarity-legendary { border-left: 3px solid var(--orange); box-shadow: 0 0 18px rgba(229,150,79,.16); }
+        .card.kind-active { border-left-color: var(--jade); }
+        .card.kind-passive { border-left-color: var(--blue); }
+
+        /* ---------- HUD ---------- */
         #hud {
             position: sticky; top: 0; z-index: 30;
-            background: rgba(20,16,24,.96);
-            border: 1px solid #352c45; border-radius: 12px;
-            padding: 8px 10px; margin-bottom: 10px;
-            backdrop-filter: blur(4px);
+            background: rgba(10,12,17,.93);
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            padding: 10px 12px; margin-bottom: 12px;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 10px 30px rgba(0,0,0,.45);
         }
-        .hud-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
-        .hud-stats { display: flex; gap: 12px; flex-wrap: wrap; font-size: 14px; }
-        .hud-stats b { color: #ffca28; }
-        .hp-bar { height: 8px; background: #4a2230; border-radius: 4px; overflow: hidden; margin-top: 6px; }
-        .hp-fill { height: 100%; background: linear-gradient(90deg,#e53935,#ff8a65); }
-        .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
-        .chip { background: #2c2438; border: 1px solid #45385c; border-radius: 20px; padding: 2px 9px; font-size: 12px; }
-        .chip.relic { border-color: #ffca28; color: #ffd86b; }
-        .chip.curse { border-color: #e53935; color: #ff8a80; }
-        .chip.rarity-rare { border-color: #42a5f5; }
-        .chip.rarity-epic { border-color: #ab47bc; }
-        .chip.rarity-legendary { border-color: #ffa726; box-shadow: 0 0 8px rgba(255,167,38,.5); }
+        .hud-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .hud-hero { display: flex; align-items: center; gap: 8px; min-width: 0; }
+        .hud-avatar {
+            width: 34px; height: 34px; border-radius: 9px; background: var(--panel-2);
+            border: 1px solid var(--line-2); display: flex; align-items: center; justify-content: center;
+            font-size: 18px;
+        }
+        .hud-name { font-weight: 700; font-size: 14px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .hud-where { font-size: 10.5px; color: var(--muted); letter-spacing: 1.5px; text-transform: uppercase; }
+        .hud-stats { display: flex; gap: 10px; flex-wrap: wrap; font-size: 13px; }
+        .hud-stats .hs { display: flex; align-items: center; gap: 5px; }
+        .hud-stats b { color: var(--gold-hi); }
+        .hp-bar { height: 7px; background: #2a1a22; border-radius: 4px; overflow: hidden; margin-top: 9px; }
+        .hp-fill { height: 100%; background: linear-gradient(90deg, var(--crimson), #f0968b); transition: width .35s ease; }
+        .chips { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 8px; }
+        .chip {
+            background: #1b2130; border: 1px solid var(--line-2); border-radius: 999px;
+            padding: 3px 9px; font-size: 11.5px; color: #aab0c2;
+        }
+        .chip.relic { border-color: rgba(233,185,73,.55); color: var(--gold-hi); }
+        .chip.curse { border-color: rgba(217,83,79,.6); color: #ff9d99; }
+        .chip.limit { border-color: var(--line-2); color: var(--muted); font-variant-numeric: tabular-nums; }
 
-        /* Heroes */
-        .hero-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        /* ---------- Стартовый экран ---------- */
+        .hero-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
         .hero-card {
-            background: #251f31; border: 2px solid #3a3145; border-radius: 12px;
-            padding: 10px; cursor: pointer; text-align: left; transition: .12s;
+            background: linear-gradient(180deg, #1a2030, #151a27);
+            border: 1px solid var(--line-2); border-radius: 12px;
+            padding: 12px; cursor: pointer; text-align: left;
+            transition: transform .1s ease, border-color .12s ease, box-shadow .12s ease;
         }
-        .hero-card:hover { border-color: #ffca28; }
-        .hero-card.sel { border-color: #ffca28; background: #322a1f; box-shadow: 0 0 14px rgba(255,202,40,.4); }
+        .hero-card:hover { transform: translateY(-2px); border-color: rgba(233,185,73,.5); }
+        .hero-card.sel { border-color: var(--gold); box-shadow: 0 0 0 1px rgba(233,185,73,.35), 0 12px 26px rgba(233,185,73,.12); }
         .hero-card.locked { opacity: .55; }
-        .hero-card .hc-name { font-weight: bold; color: #ffca28; font-size: 15px; }
-        .hero-card .hc-desc { font-size: 12px; color: #cdbfe0; margin-top: 4px; line-height: 1.35; }
+        .hero-top { display: flex; align-items: center; gap: 9px; }
+        .hero-icon {
+            width: 40px; height: 40px; border-radius: 10px; background: #10141d;
+            border: 1px solid var(--line-2); display: flex; align-items: center; justify-content: center;
+            font-size: 21px;
+        }
+        .hero-name { font-weight: 700; color: var(--gold-hi); font-size: 15px; }
+        .hero-tag { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); }
+        .hero-desc { font-size: 12.5px; color: #b3b9cb; margin-top: 8px; line-height: 1.45; }
 
-        /* Map */
-        .floor { display: flex; gap: 8px; justify-content: center; margin: 6px 0; }
+        .stepper { display: flex; align-items: center; gap: 10px; }
+        .stepper-val {
+            flex: 1 1 auto; text-align: center;
+            font-family: Georgia, serif; font-size: 22px; color: var(--gold-hi); letter-spacing: 2px;
+        }
+        .law-dots { display: flex; gap: 5px; justify-content: center; flex-wrap: wrap; margin-top: 10px; }
+        .law-dot {
+            width: 15px; height: 15px; border-radius: 4px; background: #1b2130;
+            border: 1px solid var(--line-2); transform: rotate(45deg);
+        }
+        .law-dot.on { background: var(--gold); border-color: var(--gold-hi); box-shadow: 0 0 8px rgba(233,185,73,.6); }
+        .law-dot.locked { opacity: .3; }
+
+        .rules { display: grid; gap: 8px; }
+        .rule { display: flex; gap: 10px; font-size: 13px; color: #b7bdce; line-height: 1.5; }
+        .rule .ri {
+            flex: 0 0 auto; width: 24px; height: 24px; border-radius: 7px;
+            background: rgba(233,185,73,.1); border: 1px solid rgba(233,185,73,.35);
+            display: flex; align-items: center; justify-content: center; font-size: 13px;
+        }
+        .records { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+        .rec {
+            background: #121722; border: 1px solid var(--line); border-radius: 10px;
+            padding: 9px 10px; text-align: center;
+        }
+        .rec .rv { font-family: Georgia, serif; font-size: 20px; color: var(--gold-hi); }
+        .rec .rl { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-top: 2px; }
+
+        /* ---------- Карта: вертикальный путь ---------- */
+        .map-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; }
+        .act-track { display: flex; gap: 5px; align-items: center; }
+        .act-pip { width: 9px; height: 9px; border-radius: 50%; background: #232a3a; border: 1px solid var(--line-2); }
+        .act-pip.on { background: var(--gold); border-color: var(--gold-hi); box-shadow: 0 0 7px rgba(233,185,73,.7); }
+        .path { display: flex; flex-direction: column; align-items: center; padding: 6px 0 2px; }
+        .floor-row {
+            position: relative; display: flex; gap: 16px; justify-content: center;
+            width: 100%; padding: 9px 0;
+        }
+        .floor-row + .floor-row::before {
+            content: ''; position: absolute; top: -9px; left: 50%; transform: translateX(-50%);
+            width: 2px; height: 18px;
+            background: linear-gradient(180deg, var(--line), var(--line-2));
+        }
+        .floor-row.past { opacity: .35; }
+        .floor-row.future { opacity: .55; }
+        .floor-row.current::before { background: rgba(233,185,73,.55); }
+        .floor-num {
+            position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+            font-size: 9.5px; letter-spacing: 1.5px; color: var(--muted); text-transform: uppercase;
+        }
+        .floor-row.boss .floor-num { color: var(--gold); }
         .node {
-            position: relative;
-            width: 58px; height: 58px; border-radius: 12px; background: #251f31;
-            border: 2px solid #3a3145; display: flex; flex-direction: column;
-            align-items: center; justify-content: center; font-size: 20px;
+            width: 56px; height: 56px; border-radius: 50%;
+            background: radial-gradient(circle at 50% 30%, #1c2333, #141a26);
+            border: 1.5px solid var(--line-2);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            font-size: 20px; position: relative;
+            transition: transform .1s ease, border-color .12s ease, box-shadow .12s ease;
         }
-        .node .nl { font-size: 9px; color: #a99bc0; margin-top: 1px; }
-        .node.current { border-color: #ffca28; cursor: pointer; box-shadow: 0 0 12px rgba(255,202,40,.4); }
-        .node.current:hover { background: #322a1f; }
-        .node.past { opacity: .35; }
-        .node.future { opacity: .5; }
-        .node.locked::after { content: '🔒'; position: absolute; font-size: 12px; }
-        .floor-wrap { position: relative; }
-        .floor-label { text-align: center; font-size: 11px; color: #7d6f95; }
+        .node .nl { font-size: 8.5px; color: var(--muted); letter-spacing: .5px; margin-top: 1px; }
+        .node.current {
+            border-color: var(--gold); cursor: pointer;
+            box-shadow: 0 0 0 3px rgba(233,185,73,.12), 0 0 18px rgba(233,185,73,.35);
+            animation: pulse 2.2s ease-in-out infinite;
+        }
+        .node.current:hover { transform: scale(1.07); }
+        .node.combat-node.current { box-shadow: 0 0 0 3px rgba(217,83,79,.14), 0 0 18px rgba(217,83,79,.4); border-color: #e07b74; }
+        .node.locked::after {
+            content: '🔒'; position: absolute; font-size: 11px; bottom: -4px; right: -3px;
+        }
+        @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+        @keyframes riseIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+        .anim { animation: riseIn .28s ease both; }
 
-        /* Cards */
-        .card-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
-        .card {
-            background: #251f31; border: 2px solid #3a3145; border-radius: 12px;
-            padding: 12px; cursor: pointer; text-align: left; transition: .12s;
-        }
-        .card:hover { border-color: #ffca28; }
-        .card .c-title { font-weight: bold; color: #ffca28; }
-        .card .c-desc { font-size: 13px; color: #cdbfe0; margin-top: 4px; }
-        .card .c-price { color: #7bd88f; font-weight: bold; margin-top: 6px; }
-        .card.sold { opacity: .4; pointer-events: none; }
-        .card.rarity-rare { border-color: #3a5a7a; }
-        .card.rarity-epic { border-color: #6a3a7a; }
-        .card.rarity-legendary { border-color: #a06a2a; }
+        .journal { list-style: none; padding: 0; margin: 8px 0 0; font-size: 12px; color: #9aa0b3; max-height: 130px; overflow-y: auto; }
+        .journal li { padding: 3px 0; border-bottom: 1px dashed #1e2432; }
+        .journal li:last-child { border-bottom: none; }
 
-        .combat-enemy { font-size: 40px; text-align: center; }
-        .combat-lot {
-            background: #ffca28; color: #1a1220; font-size: 26px; font-weight: bold;
-            padding: 10px; border-radius: 10px; text-align: center; margin: 8px 0;
+        /* ---------- Бой: дуэль ---------- */
+        .duel { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: stretch; }
+        @media (max-width: 520px) { .duel { grid-template-columns: 1fr; } .duel .center { order: -1; } }
+        .duelist {
+            background: linear-gradient(180deg, #1a2030, #151a27);
+            border: 1px solid var(--line-2); border-radius: 14px;
+            padding: 12px; text-align: center;
         }
-        .scoreboard { display: flex; justify-content: space-around; text-align: center; font-size: 14px; }
-        .scoreboard .big { font-size: 22px; font-weight: bold; color: #ffca28; }
+        .duelist.enemy { border-color: rgba(217,83,79,.35); }
+        .duelist.you { border-color: rgba(88,200,154,.3); }
+        .dl-icon { font-size: 34px; line-height: 1.1; }
+        .dl-name { font-weight: 700; font-size: 14px; margin-top: 4px; }
+        .dl-tier { font-size: 9.5px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-top: 2px; }
+        .dl-pts { font-family: Georgia, serif; font-size: 30px; color: var(--gold-hi); margin-top: 8px; line-height: 1; }
+        .dl-pts-lbl { font-size: 9.5px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; }
+        .dl-coins { margin-top: 9px; font-size: 12.5px; color: #b9bfd0; }
+        .coin-track { height: 6px; background: #221a12; border-radius: 3px; overflow: hidden; margin-top: 5px; }
+        .coin-fill { height: 100%; background: linear-gradient(90deg, #b98b2e, var(--gold-hi)); transition: width .3s ease; }
+        .dl-fill-lose { background: linear-gradient(90deg, #7a4a46, #d08a84); }
+        .tell {
+            margin-top: 10px; font-size: 11.5px; color: #d7b9b0;
+            background: rgba(217,83,79,.08); border: 1px dashed rgba(217,83,79,.4);
+            border-radius: 8px; padding: 6px 7px; line-height: 1.35;
+        }
+        .center {
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            gap: 8px; min-width: 150px; text-align: center;
+        }
+        .lot-card {
+            background: linear-gradient(180deg, var(--gold-hi), var(--gold));
+            color: #16120a; border-radius: 12px; padding: 12px 16px; min-width: 130px;
+            box-shadow: 0 10px 26px rgba(233,185,73,.22);
+        }
+        .lot-card .lc-lbl { font-size: 9.5px; letter-spacing: 2.5px; text-transform: uppercase; opacity: .75; }
+        .lot-card .lc-val { font-family: Georgia, serif; font-size: 30px; font-weight: 700; line-height: 1.1; }
+        .lot-card.dark { background: linear-gradient(180deg, #2a2f3f, #1d2230); color: var(--ink); box-shadow: none; border: 1px dashed var(--line-2); }
+        .round-dots { display: flex; gap: 6px; }
+        .rdot { width: 11px; height: 11px; border-radius: 50%; background: #232a3a; border: 1px solid var(--line-2); }
+        .rdot.done { background: var(--gold); border-color: var(--gold-hi); }
+        .rdot.now { box-shadow: 0 0 0 3px rgba(233,185,73,.2); border-color: var(--gold-hi); animation: pulse 1.6s infinite; }
+        .versus { font-family: Georgia, serif; font-size: 13px; color: var(--muted); letter-spacing: 3px; }
+
+        .round-flash {
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+            font-size: 13.5px; border-radius: 10px; padding: 9px 12px; margin-bottom: 10px;
+            border: 1px solid var(--line-2); background: #141a26;
+        }
+        .round-flash.win { border-color: rgba(88,200,154,.5); background: rgba(88,200,154,.08); color: #9fe6c8; }
+        .round-flash.lose { border-color: rgba(217,83,79,.5); background: rgba(217,83,79,.08); color: #ffb1ad; }
+        .round-flash b { color: inherit; }
+
+        .bid-panel { border-color: var(--line-2); }
+        .bid-quick { display: flex; gap: 7px; margin: 9px 0; flex-wrap: wrap; }
+        .bid-quick button { flex: 1 1 auto; min-width: 64px; }
+        .bid-input {
+            background: #0f131c; border: 1px solid var(--line-2); color: var(--ink);
+            border-radius: 10px; padding: 13px; font-size: 20px; width: 100%; text-align: center;
+            font-family: Georgia, serif; letter-spacing: 2px;
+        }
+        .bid-input:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(233,185,73,.15); }
+        .preview {
+            display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap;
+            font-size: 13px; color: #b9bfd0; margin-top: 9px;
+        }
+        .preview .eff { color: var(--gold-hi); font-weight: 700; }
+        .preview .spy { color: var(--blue); font-weight: 700; }
+        .preview .weak { color: var(--jade); }
+        .ab-row { display: flex; gap: 8px; flex-wrap: wrap; }
+        .ab {
+            flex: 1 1 150px; text-align: left;
+            background: #171d2b; border: 1px solid var(--line-2); color: var(--ink);
+            border-radius: 10px; padding: 10px; min-height: auto; box-shadow: none;
+        }
+        .ab .abn { font-weight: 700; font-size: 13.5px; color: var(--gold-hi); }
+        .ab .abd { font-size: 11.5px; color: #a7adbe; margin-top: 3px; line-height: 1.4; }
+        .ab.armed { border-color: var(--jade); background: rgba(88,200,154,.1); box-shadow: 0 0 14px rgba(88,200,154,.2); }
+        .ab:hover { transform: translateY(-1px); filter: none; }
+        .ab-slot-empty {
+            flex: 1 1 150px; border: 1px dashed var(--line-2); border-radius: 10px;
+            padding: 10px; font-size: 11.5px; color: var(--muted); text-align: center;
+        }
+
+        .log { list-style: none; padding: 0; margin: 6px 0 0; font-size: 12px; color: #9aa0b3; max-height: 120px; overflow-y: auto; }
+        .log li { margin: 3px 0; }
+
+        /* ---------- Прочее ---------- */
         input[type=number], input[type=text] {
-            background: #2c2438; border: 1px solid #55486a; color: #fff;
-            border-radius: 8px; padding: 11px; font-size: 16px; width: 100%; text-align: center;
+            background: #0f131c; border: 1px solid var(--line-2); color: var(--ink);
+            border-radius: 10px; padding: 12px; font-size: 16px; width: 100%; text-align: center;
         }
-        .log { list-style: none; padding: 0; margin: 6px 0 0; font-size: 12px; color: #b9a9d0; max-height: 130px; overflow-y: auto; }
-        .log li { margin: 2px 0; }
+        input:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(233,185,73,.14); }
+
         .banner {
             position: fixed; left: 50%; top: 14px; transform: translateX(-50%);
-            background: #2c2438; border: 1px solid #ffca28; color: #ffd86b;
-            padding: 10px 16px; border-radius: 10px; z-index: 200; font-weight: bold;
-            box-shadow: 0 6px 24px rgba(0,0,0,.5); max-width: 90vw; text-align: center;
+            background: #161c29; border: 1px solid var(--gold); color: var(--gold-hi);
+            padding: 11px 18px; border-radius: 12px; z-index: 300; font-weight: 700;
+            box-shadow: 0 12px 34px rgba(0,0,0,.6); max-width: 90vw; text-align: center;
+            animation: riseIn .2s ease both; font-size: 14px;
         }
-        .banner.bad { border-color: #e53935; color: #ff8a80; }
-        .banner.good { border-color: #4caf50; color: #a5d6a7; }
+        .banner.bad { border-color: var(--crimson); color: #ff9d99; }
+        .banner.good { border-color: var(--jade); color: #a5ecd0; }
+
         #sound-btn, #back-btn {
-            position: fixed; top: 10px; width: 44px; height: 44px; border-radius: 50%;
-            padding: 0; margin: 0; z-index: 200; font-size: 18px;
+            position: fixed; top: 10px; width: 44px; height: 44px; border-radius: 12px;
+            padding: 0; margin: 0; z-index: 300; font-size: 17px; min-height: 44px;
+            background: #12172288; border: 1px solid var(--line-2); color: var(--ink);
+            backdrop-filter: blur(6px); box-shadow: none;
         }
-        #sound-btn { right: 10px; background: #251f31; border: 1px solid #55486a; color: #fff; }
-        #back-btn { left: 10px; background: #251f31; border: 1px solid #55486a; color: #fff; }
-        .divider { height: 1px; background: #352c45; margin: 10px 0; }
-        .stat-line { font-size: 13px; color: #cdbfe0; margin: 3px 0; }
-        .pill { display: inline-block; background: #322a1f; border: 1px solid #ffca28; color: #ffd86b; border-radius: 20px; padding: 2px 10px; font-size: 12px; margin: 2px; }
-        @media (min-width: 560px) { .card-grid { grid-template-columns: 1fr 1fr; } }
+        #sound-btn { right: 10px; }
+        #back-btn { left: 10px; }
+
+        .run-footer { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+        .run-footer button { flex: 1 1 auto; }
     </style>
     <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
     <button id="back-btn" title="В меню">←</button>
     <button id="sound-btn" title="Звук">🔊</button>
-    <div class="wrap">
-        <h1>🎲 ЗАБЕГ</h1>
-        <div class="sub" id="topline">Рогалик о ставках</div>
 
-        <!-- Стартовый экран -->
+    <div class="wrap">
+        <div class="brand">
+            <div class="brand-mark">LOTS</div>
+            <div class="brand-title">Забег</div>
+            <div class="brand-sub">рогалик · аукцион · судьба</div>
+        </div>
+        <div class="topline" id="topline">Ночная коллекция лотов</div>
+
+        <!-- ================= СТАРТ ================= -->
         <div id="start-screen">
-            <div class="panel">
-                <h3>Выбери героя</h3>
-                <div class="hero-grid" id="hero-grid"></div>
-                <div class="muted" id="hero-meta" style="margin-top:8px;"></div>
-            </div>
-            <div class="panel">
-                <h3>Сложность («Закон»)</h3>
-                <div class="row" style="align-items:center;">
-                    <button class="btn-sec btn-sm" id="asc-minus">−</button>
-                    <div class="grow" style="text-align:center;font-weight:bold;color:#ffca28;" id="asc-label">Закон 0</div>
-                    <button class="btn-sec btn-sm" id="asc-plus">+</button>
+            <div class="panel anim">
+                <h3 class="lbl">Правила забега</h3>
+                <div class="rules">
+                    <div class="rule"><span class="ri">⚔</span><span><b class="kbd">Бой — три раунда.</b> Монеты ограничены: ставка дороже, чем очков приносит. Побеждает лот. Победивший набирает очки лота.</span></div>
+                    <div class="rule"><span class="ri">◎</span><span><b class="kbd">Бои — источник всего.</b> Обычный бой кормит золотом, элиты и сундуки дают реликвии, боссы — реликвии и навыки.</span></div>
+                    <div class="rule"><span class="ri">▦</span><span><b class="kbd">Лимиты жёсткие:</b> 7 реликвий, 2 активных и 2 пассивных навыка, 3 зелья. Собрать всё нельзя — придётся выбирать.</span></div>
+                    <div class="rule"><span class="ri">♛</span><span><b class="kbd">Три акта</b> и босс в конце каждого. Урон идёт по репутации (HP) — на нуле забег окончен.</span></div>
                 </div>
-                <div class="muted">Открывается за победы. Каждый закон усиливает врагов, но даёт больше кристаллов.</div>
             </div>
-            <input type="text" id="name-input" placeholder="Твоё имя" maxlength="15" style="margin-bottom:8px;">
-            <div class="row">
-                <button class="grow" id="btn-start">▶ Начать забег</button>
-                <button class="btn-sec" id="btn-daily">🎯 Забег дня</button>
+
+            <div class="panel anim">
+                <h3 class="lbl">Герой</h3>
+                <div class="hero-grid" id="hero-grid"></div>
             </div>
-            <div class="panel" id="meta-panel"></div>
-            <p class="err" id="start-err"></p>
+
+            <div class="panel anim">
+                <h3 class="lbl">Сложность — «Закон»</h3>
+                <div class="stepper">
+                    <button class="btn-sec" id="asc-minus">−</button>
+                    <div class="stepper-val" id="asc-label">Закон 0</div>
+                    <button class="btn-sec" id="asc-plus">+</button>
+                </div>
+                <div class="law-dots" id="law-dots"></div>
+                <div class="muted" style="margin-top:9px;">Каждый закон усиливает врагов (в их кошельке) и удваивает награду. Открывается за победы.</div>
+            </div>
+
+            <div class="panel anim">
+                <h3 class="lbl">Дальше</h3>
+                <input type="text" id="name-input" placeholder="Твоё имя" maxlength="15">
+                <div class="row" style="margin-top:10px;">
+                    <button class="grow" id="btn-start">▶ Начать забег</button>
+                    <button class="btn-sec" id="btn-daily">🎯 Забег дня</button>
+                </div>
+                <p class="err" id="start-err"></p>
+            </div>
+
+            <div class="panel anim flat">
+                <h3 class="lbl">Кабинет</h3>
+                <div class="records" id="meta-panel"></div>
+            </div>
         </div>
 
-        <!-- Экран забега (универсальный) -->
+        <!-- ================= ЗАБЕГ ================= -->
         <div id="run-screen" class="hidden">
             <div id="hud"></div>
             <div id="screen-body"></div>
-            <div class="row" style="margin-top:10px;">
+            <div class="run-footer">
                 <button class="btn-ghost btn-sm" id="btn-abandon">Сдаться и выйти</button>
-                <button class="btn-ghost btn-sm" id="btn-content">📖 Способности и реликвии</button>
+                <button class="btn-ghost btn-sm" id="btn-content">📖 Бестиарий</button>
             </div>
         </div>
     </div>
@@ -204,7 +472,7 @@
     <div id="banner-layer"></div>
 
     <script>
-    // ================== Socket и базовое ==================
+    // ================== Socket и утилиты ==================
     const socket = io();
     const $ = id => document.getElementById(id);
     const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -213,12 +481,13 @@
         battle: { icon: '⚔️', label: 'Лот' }, elite: { icon: '💀', label: 'Элита' },
         boss: { icon: '👑', label: 'Босс' }, treasure: { icon: '🎁', label: 'Сундук' },
         event: { icon: '📜', label: 'Событие' }, rest: { icon: '🔥', label: 'Костёр' },
-        shop: { icon: '🛒', label: 'Магазин' }, forge: { icon: '🔨', label: 'Кузница' },
+        shop: { icon: '🛒', label: 'Лавка' }, forge: { icon: '🔨', label: 'Кузница' },
         library: { icon: '📚', label: 'Библиотека' }, altar: { icon: '⚗️', label: 'Алтарь' },
         casino: { icon: '🎰', label: 'Казино' }
     };
+    const TIER_LABEL = { battle: 'обычный бой', elite: 'элита', boss: 'босс' };
 
-    // ================== Мета-прогрессия (localStorage) ==================
+    // ================== Мета (localStorage) ==================
     const ALL_HEROES = ['sprinter', 'marathon', 'merchant', 'hunter', 'collector', 'mystic', 'tank', 'hedonist', 'intriguer'];
     const HERO_COST = { tank: 30, hedonist: 50, intriguer: 70 };
     function loadMeta() {
@@ -262,6 +531,10 @@
     let view = null;
     let selectedHero = 'sprinter';
     let selectedAsc = 0;
+    let lastRound = null;      // последний разрешённый раунд (для вспышки)
+    let bidValue = 0;          // сохранение ввода ставки между ререндерами
+    let lastContent = null;
+
     const nameInput = $('name-input');
     nameInput.value = localStorage.getItem('lots_playerName') || '';
 
@@ -273,12 +546,17 @@
             const unlocked = isUnlocked(h.id);
             const card = document.createElement('div');
             card.className = 'hero-card' + (h.id === selectedHero ? ' sel' : '') + (!unlocked ? ' locked' : '');
-            card.innerHTML = '<div class="hc-name">' + h.icon + ' ' + esc(h.name) + '</div><div class="hc-desc">' + esc(h.desc) + '</div>';
+            card.innerHTML =
+                '<div class="hero-top"><div class="hero-icon">' + h.icon + '</div>' +
+                '<div><div class="hero-name">' + esc(h.name) + '</div>' +
+                '<div class="hero-tag">' + (unlocked ? 'доступен' : 'закрыт') + '</div></div></div>' +
+                '<div class="hero-desc">' + esc(h.desc) + '</div>';
             if (!unlocked) {
                 const cost = HERO_COST[h.id] || 40;
                 const b = document.createElement('button');
                 b.className = 'btn-sm';
-                b.style.marginTop = '6px';
+                b.style.marginTop = '8px';
+                b.style.width = '100%';
                 b.innerText = '🔓 Открыть за ' + cost + ' 💎';
                 b.disabled = meta.crystals < cost;
                 b.onclick = (e) => { e.stopPropagation(); if (meta.crystals >= cost) { meta.crystals -= cost; meta.unlocked.push(h.id); saveMeta(meta); sfx('pick'); selectedHero = h.id; renderStart(heroes); renderMeta(); } };
@@ -288,21 +566,32 @@
             }
             grid.appendChild(card);
         });
-        const hsel = (heroes || []).find(h => h.id === selectedHero);
-        $('hero-meta').innerText = hsel ? ('Выбран: ' + hsel.name) : '';
-        $('asc-label').innerText = 'Закон ' + selectedAsc + (selectedAsc === 0 ? ' (обычный)' : '');
+        renderLaw();
     }
+
+    function renderLaw() {
+        $('asc-label').innerText = 'Закон ' + selectedAsc + (selectedAsc === 0 ? ' · обычный' : selectedAsc >= 10 ? ' · кошмар' : '');
+        const dots = $('law-dots');
+        dots.innerHTML = '';
+        for (let i = 0; i <= 15; i++) {
+            const d = document.createElement('div');
+            d.className = 'law-dot' + (i <= selectedAsc ? ' on' : '') + (i > meta.ascension ? ' locked' : '');
+            d.title = 'Закон ' + i;
+            dots.appendChild(d);
+        }
+    }
+
     function renderMeta() {
         $('meta-panel').innerHTML =
-            '<h3>Прогресс</h3>' +
-            '<div class="stat-line">💎 Кристаллы: <b>' + meta.crystals + '</b></div>' +
-            '<div class="stat-line">🏆 Лучший счёт: <b>' + meta.bestScore + '</b></div>' +
-            '<div class="stat-line">🎯 Забегов: <b>' + meta.runs + '</b>, побед: <b>' + meta.wins + '</b></div>' +
-            '<div class="stat-line">🔥 Макс. закон: <b>' + meta.ascension + '</b></div>' +
-            (meta.dailyDate ? '<div class="stat-line">📅 Забег дня (' + meta.dailyDate + '): <b>' + meta.dailyBest + '</b></div>' : '');
+            '<div class="rec"><div class="rv">' + meta.crystals + '</div><div class="rl">кристаллы 💎</div></div>' +
+            '<div class="rec"><div class="rv">' + meta.bestScore + '</div><div class="rl">лучший счёт</div></div>' +
+            '<div class="rec"><div class="rv">' + meta.wins + '/' + meta.runs + '</div><div class="rl">побед / забегов</div></div>' +
+            '<div class="rec"><div class="rv">' + meta.ascension + '</div><div class="rl">макс. закон</div></div>' +
+            (meta.dailyDate ? '<div class="rec"><div class="rv">' + meta.dailyBest + '</div><div class="rl">забег дня ' + esc(meta.dailyDate) + '</div></div>' : '');
     }
-    $('asc-minus').onclick = () => { selectedAsc = Math.max(0, selectedAsc - 1); $('asc-label').innerText = 'Закон ' + selectedAsc + (selectedAsc === 0 ? ' (обычный)' : ''); sfx('click'); };
-    $('asc-plus').onclick = () => { selectedAsc = Math.min(meta.ascension, selectedAsc + 1); $('asc-label').innerText = 'Закон ' + selectedAsc + (selectedAsc === 0 ? ' (обычный)' : ''); sfx('click'); };
+
+    $('asc-minus').onclick = () => { selectedAsc = Math.max(0, selectedAsc - 1); renderLaw(); sfx('click'); };
+    $('asc-plus').onclick = () => { selectedAsc = Math.min(meta.ascension, selectedAsc + 1); renderLaw(); sfx('click'); };
     $('btn-start').onclick = () => {
         ensureAudio();
         const name = nameInput.value.trim() || 'Игрок';
@@ -315,6 +604,7 @@
         ensureAudio();
         const name = nameInput.value.trim() || 'Игрок';
         const dateStr = new Date().toISOString().slice(0, 10);
+        sfx('pick');
         socket.emit('rlStart', { heroId: selectedHero, name, ascension: selectedAsc, seed: 'daily-' + dateStr });
     };
     $('btn-abandon').onclick = () => { if (confirm('Сдаться и выйти из забега?')) socket.emit('rlAbandon'); };
@@ -324,19 +614,20 @@
     function renderContentModal(content) {
         const overlay = document.createElement('div');
         overlay.className = 'banner';
-        overlay.style.cssText = 'position:fixed;inset:0;transform:none;left:0;top:0;max-width:none;border-radius:0;overflow:auto;text-align:left;align-items:flex-start;';
-        let html = '<div style="max-width:640px;margin:0 auto;"><h2>📖 Способности и реликвии</h2>';
-        html += '<h3>⚡ Активные способности</h3>';
-        (content.actives || []).forEach(a => { html += '<div class="chip" style="display:block;margin:3px 0;">' + esc(a.name) + ' — ' + esc(a.desc) + '</div>'; });
-        html += '<h3>🛡 Пассивные способности</h3>';
-        (content.passives || []).forEach(a => { html += '<div class="chip" style="display:block;margin:3px 0;">' + esc(a.name) + ' — ' + esc(a.desc) + '</div>'; });
-        html += '<h3>Реликвии</h3>';
-        (content.relics || []).forEach(r => { html += '<div class="chip relic rarity-' + r.rarity + '" style="display:block;margin:3px 0;">' + r.icon + ' <b>' + esc(r.name) + '</b> — ' + esc(r.desc) + '</div>'; });
-        html += '<h3>Проклятия</h3>';
-        (content.curses || []).forEach(c => { html += '<div class="chip curse" style="display:block;margin:3px 0;">' + c.icon + ' <b>' + esc(c.name) + '</b> — ' + esc(c.desc) + '</div>'; });
-        html += '<h3>Зелья</h3>';
-        (content.potions || []).forEach(p => { html += '<div class="chip" style="display:block;margin:3px 0;">' + p.icon + ' <b>' + esc(p.name) + '</b> — ' + esc(p.desc) + '</div>'; });
-        html += '<div class="row" style="margin-top:10px;justify-content:center;"><button id="content-close">Закрыть</button></div></div>';
+        overlay.style.cssText = 'position:fixed;inset:0;transform:none;left:0;top:0;max-width:none;border-radius:0;overflow:auto;text-align:left;align-items:flex-start;padding-top:30px;';
+        let html = '<div style="max-width:660px;margin:0 auto;"><h2 style="font-family:Georgia,serif;color:var(--gold);">📖 Бестиарий и каталог</h2>';
+        html += '<div class="muted" style="margin-bottom:8px;">Собери образ: активные навыки — в бою по одному за раунд, пассивные — всегда.</div>';
+        html += '<h3 class="lbl">⚡ Активные навыки (слоты 2)</h3>';
+        (content.actives || []).forEach(a => { html += '<div class="chip" style="display:block;margin:4px 0;border-radius:8px;padding:7px 10px;"><b>' + esc(a.name) + '</b> — ' + esc(a.desc) + '</div>'; });
+        html += '<h3 class="lbl" style="margin-top:14px;">🛡 Пассивные навыки (слоты 2)</h3>';
+        (content.passives || []).forEach(a => { html += '<div class="chip" style="display:block;margin:4px 0;border-radius:8px;padding:7px 10px;"><b>' + esc(a.name) + '</b> — ' + esc(a.desc) + '</div>'; });
+        html += '<h3 class="lbl" style="margin-top:14px;">💎 Реликвии (лимит 7)</h3>';
+        (content.relics || []).forEach(r => { html += '<div class="chip relic" style="display:block;margin:4px 0;border-radius:8px;padding:7px 10px;">' + r.icon + ' <b>' + esc(r.name) + '</b> — ' + esc(r.desc) + '</div>'; });
+        html += '<h3 class="lbl" style="margin-top:14px;">☠ Проклятия</h3>';
+        (content.curses || []).forEach(c => { html += '<div class="chip curse" style="display:block;margin:4px 0;border-radius:8px;padding:7px 10px;">' + c.icon + ' <b>' + esc(c.name) + '</b> — ' + esc(c.desc) + '</div>'; });
+        html += '<h3 class="lbl" style="margin-top:14px;">🧪 Зелья (лимит 3)</h3>';
+        (content.potions || []).forEach(p => { html += '<div class="chip" style="display:block;margin:4px 0;border-radius:8px;padding:7px 10px;">' + p.icon + ' <b>' + esc(p.name) + '</b> — ' + esc(p.desc) + '</div>'; });
+        html += '<div class="row" style="margin-top:14px;justify-content:center;"><button id="content-close">Закрыть</button></div></div>';
         overlay.innerHTML = html;
         document.body.appendChild(overlay);
         overlay.querySelector('#content-close').onclick = () => overlay.remove();
@@ -344,26 +635,29 @@
 
     // ================== HUD ==================
     function renderHUD(v) {
-        const chips = [];
-        v.relics.forEach(r => chips.push('<span class="chip relic rarity-' + r.rarity + '" title="' + esc(r.desc) + '">' + r.icon + ' ' + esc(r.name) + '</span>'));
-        v.curses.forEach(c => chips.push('<span class="chip curse" title="' + esc(c.desc) + '">' + c.icon + ' ' + esc(c.name) + '</span>'));
+        const lim = v.limits || { relics: 7, active: 2, passive: 2, potions: 3 };
+        const relicChips = v.relics.map(r => '<span class="chip relic" title="' + esc(r.name + ': ' + r.desc) + '">' + r.icon + '</span>').join('');
+        const curseChips = v.curses.map(c => '<span class="chip curse" title="' + esc(c.name + ': ' + c.desc) + '">' + c.icon + '</span>').join('');
+        const potionChips = (v.potions || []).map(p => '<span class="chip" title="' + esc(p.desc) + '">' + p.icon + '×' + p.count + '</span>').join('');
         const hpPct = Math.max(0, Math.min(100, v.hp / v.maxHp * 100));
-        const potions = (v.potions || []).map(p => '<span class="chip">' + p.icon + ' ' + esc(p.name) + ' ×' + p.count + '</span>').join('');
         $('hud').innerHTML =
-            '<div class="hud-top"><div class="hud-stats">' +
-                '<span>' + (v.hero ? v.hero.icon : '') + ' <b>' + esc(v.hero ? v.hero.name : '') + '</b></span>' +
-                '<span>Акт <b>' + v.act + '</b></span>' +
-                '<span>Этаж <b>' + (v.floorIndex + 1) + '</b>/' + v.maxFloors + '</span>' +
-                '<span>❤️ <b>' + v.hp + '</b>/' + v.maxHp + '</span>' +
-                '<span>💰 <b>' + v.gold + '</b></span>' +
-                (v.ascension ? '<span>🔥 Закон <b>' + v.ascension + '</b></span>' : '') +
-            '</div></div>' +
+            '<div class="hud-row">' +
+                '<div class="hud-hero"><div class="hud-avatar">' + (v.hero ? v.hero.icon : '') + '</div>' +
+                    '<div style="min-width:0;"><div class="hud-name">' + esc(v.hero ? v.hero.name : '') + '</div>' +
+                    '<div class="hud-where">Акт ' + v.act + ' · этаж ' + (v.floorIndex + 1) + '/' + v.maxFloors + (v.ascension ? ' · закон ' + v.ascension : '') + '</div></div></div>' +
+                '<div class="hud-stats">' +
+                    '<span class="hs" title="Репутация">❤️ <b>' + v.hp + '</b>/' + v.maxHp + '</span>' +
+                    '<span class="hs" title="Золото">💰 <b>' + v.gold + '</b></span>' +
+                    '<span class="hs" title="Лимиты">💎 <b>' + v.relics.length + '</b>/' + lim.relics + '</span>' +
+                    '<span class="hs" title="Активные / пассивные навыки">⚡ <b>' + v.abilities.active.length + '/' + lim.active + '</b> · 🛡 <b>' + v.abilities.passive.length + '/' + lim.passive + '</b></span>' +
+                    '<span class="hs" title="Зелья">🧪 <b>' + (v.potionCount || 0) + '</b>/' + lim.potions + '</span>' +
+                '</div>' +
+            '</div>' +
             '<div class="hp-bar"><div class="hp-fill" style="width:' + hpPct + '%"></div></div>' +
-            (chips.length ? '<div class="chips">' + chips.join('') + '</div>' : '') +
-            (potions ? '<div class="chips">' + potions + '</div>' : '');
+            ((relicChips || curseChips || potionChips) ? '<div class="chips">' + relicChips + curseChips + potionChips + '</div>' : '');
     }
 
-    // ================== Отрисовка экранов ==================
+    // ================== Диспетчер экранов ==================
     function render(v) {
         view = v;
         $('start-screen').classList.toggle('hidden', !!(v && v.screen !== 'start'));
@@ -372,9 +666,12 @@
         renderHUD(v);
         const body = $('screen-body');
         const screen = v.screen;
-        document.getElementById('topline').innerText = v.actName + ' · ' + (v.hero ? v.hero.name : '') + (v.ascension ? ' · Закон ' + v.ascension : '');
-        if (screen === 'map' || screen === 'gameover' || screen === 'victory') { if (screen === 'map') renderMap(v, body); else renderEnd(v, body); return; }
-        if (screen === 'combat') renderCombat(v, body);
+        $('topline').innerText = v.actName + ' · ' + (v.hero ? v.hero.name : '') + (v.ascension ? ' · Закон ' + v.ascension : '');
+
+        if (screen === 'gameover' || screen === 'victory') { renderEnd(v, body); return; }
+        if (v.swap) { renderSwap(v, body); return; }
+        if (screen === 'map') renderMap(v, body);
+        else if (screen === 'combat') renderCombat(v, body);
         else if (screen === 'reward') renderReward(v, body);
         else if (screen === 'event') renderEvent(v, body);
         else if (screen === 'shop') renderShop(v, body);
@@ -387,84 +684,190 @@
         else body.innerHTML = '<div class="panel">Неизвестный экран: ' + esc(screen) + '</div>';
     }
 
+    // ================== КАРТА ==================
     function renderMap(v, body) {
         const floors = v.map.floors;
-        let html = '<div class="panel"><h3>Карта — ' + esc(v.actName) + '</h3>';
-        // показываем диапазон этажей вокруг текущего
-        const from = Math.max(0, v.floorIndex - 1), to = Math.min(floors.length, v.floorIndex + 5);
-        for (let f = from; f < to; f++) {
+        let html = '<div class="panel anim"><div class="map-head">' +
+            '<h3 class="lbl" style="margin:0;">' + esc(v.actName) + '</h3>' +
+            '<div class="act-track">' + [1, 2, 3].map(a => '<span class="act-pip' + (a <= v.act ? ' on' : '') + '" title="Акт ' + a + '"></span>').join('') + '</div>' +
+            '</div><div class="path">';
+        // сверху — финал акта (босс), снизу — начало
+        for (let f = floors.length - 1; f >= 0; f--) {
+            const row = floors[f];
             const isCurrent = f === v.floorIndex;
             const isPast = f < v.floorIndex;
-            html += '<div class="floor-wrap"><div class="floor-label">Этаж ' + (f + 1) + (f === floors.length - 1 ? ' — БОСС' : '') + '</div><div class="floor">';
-            floors[f].forEach((node, ni) => {
+            const isBoss = row.some(n => n.type === 'boss');
+            const cls = 'floor-row ' + (isCurrent ? 'current' : isPast ? 'past' : 'future') + (isBoss ? ' boss' : '');
+            html += '<div class="' + cls + '" id="row-' + f + '"><span class="floor-num">' + (isBoss ? 'босс' : (f + 1)) + '</span>';
+            row.forEach((node, ni) => {
                 const meta = NODE_META[node.type] || { icon: '❔', label: '?' };
-                const cls = 'node ' + (isCurrent ? 'current' : isPast ? 'past' : 'future') + (node.locked ? ' locked' : '');
-                const label = node.revealed || isCurrent ? meta.label : '???';
+                const combat = node.type === 'battle' || node.type === 'elite' || node.type === 'boss';
+                const ncls = 'node' + (isCurrent ? ' current' : '') + (combat ? ' combat-node' : '') + (node.locked ? ' locked' : '');
+                const label = isCurrent ? meta.label : (node.revealed ? meta.label : '· · ·');
                 const clickable = isCurrent ? ' data-floor="' + f + '" data-node="' + ni + '"' : '';
-                html += '<div class="' + cls + '"' + clickable + '><span>' + meta.icon + '</span><span class="nl">' + esc(label) + '</span></div>';
+                html += '<div class="' + ncls + '"' + clickable + ' title="' + esc(meta.label) + '"><span>' + meta.icon + '</span><span class="nl">' + esc(label) + '</span></div>';
             });
-            html += '</div></div>';
+            html += '</div>';
         }
-        html += '<div class="muted" style="margin-top:8px;">Выбери узел на текущем этаже (подсвечен).</div></div>';
+        html += '</div><div class="muted" style="text-align:center;margin-top:6px;">Светится путь текущего этажа — выбери узел.</div>';
+        if (v.log && v.log.length) {
+            html += '<div class="divider"></div><h3 class="lbl">Хроника</h3><ul class="journal">' +
+                v.log.slice().reverse().map(l => '<li>' + esc(l) + '</li>').join('') + '</ul>';
+        }
+        const mapPotions = (v.potions || []).filter(p => p.where !== 'combat');
+        if (mapPotions.length) {
+            html += '<div class="divider"></div><h3 class="lbl">Зелья — можно выпить здесь</h3><div class="row">';
+            mapPotions.forEach(p => {
+                html += '<button class="btn-sec btn-sm" data-mpotion="' + p.id + '" title="' + esc(p.desc) + '">' + p.icon + ' ' + esc(p.name) + ' ×' + p.count + '</button>';
+            });
+            html += '</div>';
+        }
+        html += '</div>';
         body.innerHTML = html;
+
         body.querySelectorAll('.node.current').forEach(el => {
             el.onclick = () => {
                 sfx('click');
                 socket.emit('rlEnterNode', { floorIndex: parseInt(el.dataset.floor, 10), nodeIndex: parseInt(el.dataset.node, 10) });
             };
         });
+        body.querySelectorAll('[data-mpotion]').forEach(el => el.onclick = () => { sfx('coin'); socket.emit('rlUsePotion', { potionId: el.dataset.mpotion }); });
+        const cur = $('row-' + v.floorIndex);
+        if (cur && cur.scrollIntoView) {
+            setTimeout(() => { try { cur.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {} }, 60);
+        }
     }
 
+    // ================== БОЙ ==================
     function renderCombat(v, body) {
         const b = v.battle;
-        const enemyHp = b.enemyCoins;
-        let html = '<div class="panel">' +
-            '<div class="combat-enemy">' + b.enemy.icon + '</div>' +
-            '<div style="text-align:center;font-weight:bold;color:#ffca28;">' + esc(b.enemy.name) + ' <span class="muted">(' + (b.tier === 'boss' ? 'босс' : b.tier === 'elite' ? 'элита' : 'боец') + ')</span></div>' +
-            '<div class="scoreboard" style="margin-top:8px;">' +
-                '<div><div>Ты</div><div class="big">' + b.playerPoints + '</div><div class="muted">⭐</div></div>' +
-                '<div style="align-self:center;color:#a99bc0;">раунд ' + b.round + '/' + b.maxRounds + '</div>' +
-                '<div><div>' + esc(b.enemy.name) + '</div><div class="big">' + b.enemyPoints + '</div><div class="muted">⭐</div></div>' +
-            '</div>' +
-            '<div class="combat-lot">' + (b.lotHidden ? '???' : b.lot + ' ⭐') + (b.lotHidden ? ' <span style="font-size:13px;">(скрыто)</span>' : '') + '</div>' +
-            '<div class="stat-line">Твои монеты: <b>' + b.playerCoins + '</b> 🪙 &nbsp;|&nbsp; Монеты врага: <b>' + b.enemyCoins + '</b> 🪙</div>' +
-            (b.bonusBid ? '<div class="stat-line">Бонус к ставке: +' + b.bonusBid + '</div>' : '') +
-            (b.armedActive ? '<div class="stat-line">⚡ Готово: ' + esc(b.armedActive) + '</div>' : '') +
-            '</div>';
+        const playerPct = Math.max(6, Math.min(100, b.playerCoins / (b.playerCoins + b.enemyCoins || 1) * 100));
 
-        // активные способности
-        if (b.activeUsable.length) {
-            html += '<div class="panel"><h3>Способности (по одной за раунд, перезарядка каждый бой)</h3><div class="row">';
-            b.activeUsable.forEach(a => {
-                html += '<button class="btn-sec btn-sm" data-act="' + a.id + '" title="' + esc(a.desc) + '">⚡ ' + esc(a.name) + '</button>';
-            });
-            html += '</div></div>';
+        let flash = '';
+        if (lastRound && lastRound.round === b.round - 1) {
+            const r = lastRound;
+            flash = '<div class="round-flash ' + (r.playerWins ? 'win' : 'lose') + '">' +
+                '<span>Раунд ' + r.round + '</span>' +
+                '<b>' + r.playerEffective + ' : ' + r.enemyEffective + '</b>' +
+                '<span>' + (r.playerWins ? 'лот твой, +' + r.pointsGained + ' ⭐' : (r.enemyPointsGained ? 'лот у врага, +' + r.enemyPointsGained + ' ⭐' : 'ничья')) + '</span>' +
+                '</div>';
         }
-        // зелья в бою
+
+        const tierLbl = TIER_LABEL[b.tier] || b.tier;
+        const dots = [];
+        for (let i = 1; i <= b.maxRounds; i++) dots.push('<span class="rdot' + (i < b.round ? ' done' : i === b.round ? ' done now' : '') + '"></span>');
+
+        let html = flash + '<div class="duel anim">' +
+            '<div class="duelist you">' +
+                '<div class="dl-icon">' + (v.hero ? v.hero.icon : '🧑') + '</div>' +
+                '<div class="dl-name">' + esc(v.hero ? v.hero.name : '') + '</div>' +
+                '<div class="dl-tier">ты</div>' +
+                '<div class="dl-pts">' + b.playerPoints + '</div><div class="dl-pts-lbl">очки лотов</div>' +
+                '<div class="dl-coins">' + b.playerCoins + ' 🪙 осталось</div>' +
+                '<div class="coin-track"><div class="coin-fill" style="width:' + playerPct + '%"></div></div>' +
+            '</div>' +
+            '<div class="center">' +
+                '<div class="round-dots">' + dots.join('') + '</div>' +
+                '<div class="lot-card' + (b.lotHidden ? ' dark' : '') + '">' +
+                    '<div class="lc-lbl">лот</div>' +
+                    '<div class="lc-val">' + (b.lotHidden ? '???' : b.lot + ' ⭐') + '</div>' +
+                '</div>' +
+                '<div class="versus">РАУНД ' + b.round + '/' + b.maxRounds + '</div>' +
+                (b.bonusBid ? '<span class="pill">бонус +' + b.bonusBid + '</span>' : '') +
+            '</div>' +
+            '<div class="duelist enemy">' +
+                '<div class="dl-icon">' + b.enemy.icon + '</div>' +
+                '<div class="dl-name">' + esc(b.enemy.name) + '</div>' +
+                '<div class="dl-tier">' + esc(tierLbl) + '</div>' +
+                '<div class="dl-pts">' + b.enemyPoints + '</div><div class="dl-pts-lbl">очки лотов</div>' +
+                '<div class="dl-coins">' + b.enemyCoins + ' 🪙 осталось</div>' +
+                '<div class="coin-track"><div class="coin-fill dl-fill-lose" style="width:' + (100 - playerPct) + '%"></div></div>' +
+                (b.enemy.tell ? '<div class="tell">' + esc(b.enemy.tell) + '</div>' : '') +
+            '</div>' +
+        '</div>';
+
+        // активные навыки
+        html += '<div class="panel anim"><h3 class="lbl">Навыки (по одному за раунд, раз за бой)</h3><div class="ab-row">';
+        (b.activeUsable || []).forEach(a => {
+            const armed = b.armedActiveId === a.id;
+            html += '<button class="ab' + (armed ? ' armed' : '') + '" data-act="' + a.id + '" title="' + esc(a.desc) + '">' +
+                '<div class="abn">⚡ ' + esc(a.name) + '</div><div class="abd">' + esc(a.desc) + '</div></button>';
+        });
+        const owned = (v.abilities.active || []).length;
+        if (!(b.activeUsable || []).length) {
+            html += '<div class="ab-slot-empty">' + (owned ? 'все активные использованы в этом бою' : 'у тебя нет активных навыков') + '</div>';
+        }
+        html += '</div>';
+
+        // зелья
         const combatPotions = (v.potions || []).filter(p => p.where === 'combat' || p.where === 'any');
         if (combatPotions.length) {
-            html += '<div class="panel"><h3>Зелья</h3><div class="row">';
+            html += '<div class="row" style="margin-top:10px;">';
             combatPotions.forEach(p => { html += '<button class="btn-sec btn-sm" data-potion="' + p.id + '" title="' + esc(p.desc) + '">' + p.icon + ' ' + esc(p.name) + ' ×' + p.count + '</button>'; });
-            html += '</div></div>';
+            html += '</div>';
         }
+        html += '</div>';
 
+        // ставка
         if (!b.hasBid) {
-            html += '<div class="panel"><h3>Твоя ставка</h3>' +
-                '<input type="number" id="bid-input" min="0" max="' + b.playerCoins + '" inputmode="numeric" placeholder="монеты (пусто = 0)">' +
-                '<div class="row" style="margin-top:8px;"><button class="grow" id="btn-bid">Сделать ставку</button></div>' +
-                '<div class="muted">Высшая эффективная ставка забирает лот. Монеты тратятся.</div></div>';
+            html += '<div class="panel bid-panel anim"><h3 class="lbl">Твоя ставка · ' + b.playerCoins + ' 🪙 в кошельке</h3>' +
+                '<input class="bid-input" type="number" id="bid-input" min="0" max="' + b.playerCoins + '" inputmode="numeric" value="' + (bidValue || 0) + '">' +
+                '<div class="bid-quick">' +
+                    '<button class="btn-sec btn-sm" data-quick="0">Пас (0)</button>' +
+                    '<button class="btn-sec btn-sm" data-quick="half">Половина</button>' +
+                    '<button class="btn-sec btn-sm" data-quick="all">Всё</button>' +
+                '</div>' +
+                '<div class="preview">' +
+                    '<span>эффективная ставка: <span class="eff" id="eff-preview">0 ⭐</span> <span class="muted" id="eff-note"></span></span>' +
+                    (b.scoutRevealed ? '<span>🕵️ ставка врага: <span class="spy">' + b.enemyBid + '</span></span>' : '') +
+                '</div>' +
+                '<div class="row" style="margin-top:10px;"><button class="grow" id="btn-bid">Сделать ставку</button></div>' +
+                '<div class="muted" style="margin-top:7px;">Побеждает большая эффективная ставка. Монеты тратятся, очки лота достаются победителю раунда.</div>' +
+                '</div>';
         } else {
-            html += '<div class="panel" style="text-align:center;">Ставка сделана...</div>';
+            html += '<div class="panel bid-panel anim"><div class="muted" style="text-align:center;">Ставка сделана… враг обдумывает ход.</div></div>';
         }
 
-        if (b.log && b.log.length) html += '<div class="panel"><h3>Ход боя</h3><ul class="log">' + b.log.map(l => '<li>' + esc(l) + '</li>').join('') + '</ul></div>';
+        if (b.log && b.log.length) {
+            html += '<div class="panel flat"><h3 class="lbl">Ход боя</h3><ul class="log">' + b.log.slice().reverse().map(l => '<li>' + esc(l) + '</li>').join('') + '</ul></div>';
+        }
 
         body.innerHTML = html;
+
         body.querySelectorAll('[data-act]').forEach(el => el.onclick = () => { sfx('click'); socket.emit('rlActivate', { abilityId: el.dataset.act }); });
         body.querySelectorAll('[data-potion]').forEach(el => el.onclick = () => { sfx('coin'); socket.emit('rlUsePotion', { potionId: el.dataset.potion }); });
+
+        const input = $('bid-input');
+        const updatePreview = () => {
+            const val = Math.max(0, parseInt(input.value, 10) || 0);
+            bidValue = val;
+            const flat = b.effFlat || 0;
+            const armedMult = b.armedActiveId === 'a_surge' ? 1.45 : b.armedActiveId === 'a_allin' ? 1.7 : 1;
+            const eff = Math.round((val + flat) * armedMult);
+            const ep = $('eff-preview');
+            if (ep) ep.textContent = eff + ' ⭐';
+            const note = $('eff-note');
+            if (note) {
+                const parts = [];
+                if (flat > 0) parts.push('+' + flat + ' бонусов');
+                if (armedMult > 1) parts.push('×' + armedMult + ' навык');
+                note.textContent = parts.length ? '(' + parts.join(', ') + ')' : '';
+            }
+        };
+        if (input) { input.addEventListener('input', updatePreview); updatePreview(); }
+
+        body.querySelectorAll('[data-quick]').forEach(el => el.onclick = () => {
+            const kind = el.dataset.quick;
+            let val = 0;
+            if (kind === 'half') val = Math.floor(b.playerCoins / 2);
+            else if (kind === 'all') val = b.playerCoins;
+            if (input) { input.value = val; updatePreview(); }
+            sfx('click');
+        });
+
         const btn = $('btn-bid');
         if (btn) btn.onclick = () => {
-            const raw = $('bid-input').value.trim();
+            const raw = (input ? input.value : '0').trim();
             const val = raw === '' ? 0 : parseInt(raw, 10);
             if (isNaN(val) || val < 0) return banner('Введи число', 'bad');
             if (val > b.playerCoins) return banner('Недостаточно монет', 'bad');
@@ -473,28 +876,38 @@
         };
     }
 
+    // ================== НАГРАДА ==================
     function renderReward(v, body) {
-        let html = '<div class="panel"><h2>🏆 Победа!</h2><div class="stat-line">Получено золота: <b>+' + v.reward.gold + '</b> 💰</div>' +
-            '<h3>Выбери награду</h3><div class="card-grid">';
+        const tier = v.reward.tier || 'battle';
+        const tierName = tier === 'boss' ? 'БОСС ПОВЕРЖЕН' : tier === 'elite' ? 'ЭЛИТА ПОВЕРЖЕНА' : 'ЛОТ ЗАБРАН';
+        let html = '<div class="panel anim"><h2 class="sect">🏆 ' + tierName + '</h2>' +
+            '<div class="stat-line">В кошелёк: <b>+' + v.reward.gold + '</b> 💰' +
+            (v.reward.tier === 'battle' ? '<span class="muted"> · обычные бои дают только золото и запас</span>' : '') + '</div>' +
+            '<div class="divider"></div><h3 class="lbl">Выбери награду</h3><div class="card-grid">';
         v.reward.options.forEach((o, i) => {
-            html += '<div class="card rarity-' + (o.rarity || 'common') + '" data-opt="' + i + '"><div class="c-title">' + (o.icon || '🎁') + ' ' + esc(o.name) + '</div><div class="c-desc">' + esc(o.desc) + '</div></div>';
+            html += '<div class="card rarity-' + (o.rarity || 'common') + '" data-opt="' + i + '">' +
+                '<div class="c-title">' + (o.icon || '🎁') + ' ' + esc(o.name) + '</div>' +
+                '<div class="c-desc">' + esc(o.desc) + '</div></div>';
         });
         html += '</div></div>';
         body.innerHTML = html;
         body.querySelectorAll('[data-opt]').forEach(el => el.onclick = () => { sfx('pick'); socket.emit('rlChooseReward', { index: parseInt(el.dataset.opt, 10) }); });
     }
 
+    // ================== СОБЫТИЕ ==================
     function renderEvent(v, body) {
         const e = v.event;
-        let html = '<div class="panel"><h2>📜 ' + esc(e.title) + '</h2><p style="color:#cdbfe0;">' + esc(e.text) + '</p>';
+        let html = '<div class="panel anim"><h2 class="sect">📜 ' + esc(e.title) + '</h2>' +
+            '<p style="color:#b7bdce;line-height:1.55;">' + esc(e.text) + '</p><div class="divider"></div>';
         if (!e.resolved) {
             html += '<div class="row" style="flex-direction:column;align-items:stretch;">';
             e.choices.forEach(c => {
-                html += '<button class="btn-sec" data-choice="' + c.i + '" ' + (c.available ? '' : 'disabled') + '>' + esc(c.label) + (c.hint ? ' <span class="muted">— ' + esc(c.hint) + '</span>' : '') + '</button>';
+                html += '<button class="btn-sec" data-choice="' + c.i + '" ' + (c.available ? '' : 'disabled') + '>' +
+                    esc(c.label) + (c.hint ? ' <span class="muted">— ' + esc(c.hint) + '</span>' : '') + '</button>';
             });
             html += '</div>';
         } else {
-            html += '<button id="ev-continue">Продолжить</button>';
+            html += '<button id="ev-continue">Продолжить путь</button>';
         }
         html += '</div>';
         body.innerHTML = html;
@@ -503,109 +916,164 @@
         if (cont) cont.onclick = () => { sfx('click'); socket.emit('rlEventContinue'); };
     }
 
+    // ================== ЛАВКА ==================
     function renderShop(v, body) {
-        let html = '<div class="panel"><h2>🛒 Магазин</h2><div class="stat-line">Золото: <b>' + v.gold + '</b> 💰</div><div class="card-grid" style="margin-top:8px;">';
+        let html = '<div class="panel anim"><h2 class="sect">🛒 Лавка</h2>' +
+            '<div class="stat-line">В кошельке: <b>' + v.gold + '</b> 💰</div>' +
+            '<div class="muted">Реликвии и зелья не появятся, если место кончилось.</div>' +
+            '<div class="card-grid" style="margin-top:10px;">';
         v.shop.stock.forEach((it, i) => {
             const cls = 'card' + (it.sold ? ' sold' : '') + ' rarity-' + (it.rarity || 'common');
-            html += '<div class="' + cls + '" data-buy="' + i + '"><div class="c-title">' + (it.icon || '🎁') + ' ' + esc(it.name) + '</div><div class="c-desc">' + esc(it.desc) + '</div><div class="c-price">' + (it.sold ? 'Куплено' : it.price + ' 💰') + '</div></div>';
+            html += '<div class="' + cls + '" data-buy="' + i + '">' +
+                '<div class="c-title">' + (it.icon || '🎁') + ' ' + esc(it.name) + '</div>' +
+                '<div class="c-desc">' + esc(it.desc) + '</div>' +
+                '<div class="c-price">' + (it.sold ? 'продано' : it.price + ' 💰') + '</div></div>';
         });
-        html += '</div><button style="margin-top:10px" id="shop-leave">Выйти из магазина</button></div>';
+        html += '</div><button class="btn-ghost btn-wide" style="margin-top:12px" id="shop-leave">Уйти из лавки</button></div>';
         body.innerHTML = html;
         body.querySelectorAll('[data-buy]').forEach(el => el.onclick = () => { sfx('coin'); socket.emit('rlShopBuy', { index: parseInt(el.dataset.buy, 10) }); });
         $('shop-leave').onclick = () => { sfx('click'); socket.emit('rlShopLeave'); };
     }
 
+    // ================== СОКРОВИЩНИЦА ==================
     function renderTreasure(v, body) {
         const t = v.treasure;
-        let html = '<div class="panel"><h2>🎁 Сокровищница</h2>';
-        if (t.got) html += '<div class="stat-line">Получено: <b>' + (t.got.icon || '') + ' ' + esc(t.got.name) + '</b></div>';
-        if (t.trapped) html += '<div class="stat-line" style="color:#ff8a80;">Сундук был проклят! Получено проклятие.</div>';
+        let html = '<div class="panel anim"><h2 class="sect">🎁 Сокровищница</h2>';
+        if (t.got) html += '<div class="stat-line">Найдено: <b>' + (t.got.icon || '') + ' ' + esc(t.got.name) + '</b></div>';
+        if (t.trapped) html += '<div class="stat-line" style="color:#ff9d99;">Сундук был проклят — досталось проклятие.</div>';
         if (t.locked && !t.opened) {
-            html += '<p>Сундук заперт. Вскрыть ценой 15 репутации?</p><button id="tr-take">Вскрыть</button>';
+            html += '<p class="muted">Замок хлипкий, но вскрыть придётся плечом: −15 репутации.</p><button id="tr-take">Вскрыть</button>';
         } else {
-            html += '<button id="tr-take">Продолжить</button>';
+            html += '<button id="tr-take">В путь</button>';
         }
         html += '</div>';
         body.innerHTML = html;
         $('tr-take').onclick = () => { sfx('pick'); socket.emit('rlTreasureTake'); };
     }
 
+    // ================== КОСТЁР ==================
     function renderRest(v, body) {
-        let html = '<div class="panel"><h2>🔥 Костёр</h2><div class="stat-line">Репутация: <b>' + v.hp + '/' + v.maxHp + '</b> ❤️</div>' +
-            '<p>Выбери одно:</p><div class="row" style="flex-direction:column;align-items:stretch;">' +
-            '<button data-rest="heal">Отдохнуть (+35% репутации)</button>' +
-            '<button data-rest="maxhp">Закалиться (+8% к макс. репутации)</button>' +
-            (v.curses.length ? '<button data-rest="removeCurse">Снять проклятие (' + v.curses.length + ')</button>' : '') +
+        let html = '<div class="panel anim"><h2 class="sect">🔥 Костёр</h2>' +
+            '<div class="stat-line">Репутация: <b>' + v.hp + '/' + v.maxHp + '</b> ❤️</div>' +
+            '<div class="divider"></div>' +
+            '<div class="row" style="flex-direction:column;align-items:stretch;">' +
+            '<button data-rest="heal">Отдохнуть — +35% репутации</button>' +
+            '<button class="btn-sec" data-rest="maxhp">Закалиться — +8% к макс. репутации</button>' +
+            (v.curses.length ? '<button class="btn-sec" data-rest="removeCurse">Снять проклятие (' + v.curses.length + ' висит)</button>' : '') +
             '</div></div>';
         body.innerHTML = html;
         body.querySelectorAll('[data-rest]').forEach(el => el.onclick = () => { sfx('pick'); socket.emit('rlRest', { action: el.dataset.rest }); });
     }
 
+    // ================== КУЗНИЦА ==================
     function renderForge(v, body) {
-        const all = (v.abilities.active.map(a => ({ ...a, kind: 'active' }))).concat(v.abilities.passive.map(a => ({ ...a, kind: 'passive' })));
-        let html = '<div class="panel"><h2>🔨 Кузница</h2><p>Выбери способность для перековки — она заменится на случайную другую того же типа.</p>';
-        if (!all.length) html += '<div class="muted">У тебя нет способностей.</div>';
+        const all = (v.abilities.active || []).map(a => ({ ...a, kind: 'active' }))
+            .concat((v.abilities.passive || []).map(a => ({ ...a, kind: 'passive' })));
+        let html = '<div class="panel anim"><h2 class="sect">🔨 Кузница</h2>' +
+            '<p class="muted">Перекуй навык: выбери, что расплавить, — получишь случайную другую того же типа.</p>';
+        if (!all.length) html += '<div class="muted">Пока нечего перековывать.</div>';
         html += '<div class="card-grid">';
         all.forEach(a => {
-            html += '<div class="card" data-forge="' + a.id + '"><div class="c-title">' + (a.kind === 'active' ? '⚡ ' : '🛡 ') + esc(a.name) + '</div><div class="c-desc">' + esc(a.desc) + '</div></div>';
+            html += '<div class="card kind-' + a.kind + '" data-forge="' + a.id + '">' +
+                '<div class="c-title">' + (a.kind === 'active' ? '⚡' : '🛡') + ' ' + esc(a.name) + '</div>' +
+                '<div class="c-desc">' + esc(a.desc) + '</div></div>';
         });
-        html += '</div><button class="btn-ghost" style="margin-top:10px" id="forge-leave">Уйти (+10 золота)</button></div>';
+        html += '</div><button class="btn-ghost btn-wide" style="margin-top:12px" id="forge-leave">Уйти (+10 💰)</button></div>';
         body.innerHTML = html;
         body.querySelectorAll('[data-forge]').forEach(el => el.onclick = () => { sfx('pick'); socket.emit('rlForgeChoose', { abilityId: el.dataset.forge }); });
         $('forge-leave').onclick = () => { sfx('click'); socket.emit('rlForgeLeave'); };
     }
 
+    // ================== БИБЛИОТЕКА ==================
     function renderLibrary(v, body) {
-        let html = '<div class="panel"><h2>📚 Библиотека</h2><p>Выбери способность.</p><div class="card-grid">';
+        const lim = v.limits || { active: 2, passive: 2 };
+        let html = '<div class="panel anim"><h2 class="sect">📚 Библиотека</h2>' +
+            '<div class="muted">Изучи один навык. Слоты: активные ' + v.abilities.active.length + '/' + lim.active +
+            ', пассивные ' + v.abilities.passive.length + '/' + lim.passive + ' — если заполнены, придётся кого-то заменить.</div>' +
+            '<div class="card-grid" style="margin-top:10px;">';
         v.library.options.forEach(a => {
-            html += '<div class="card" data-lib="' + a.id + '"><div class="c-title">' + (a.type === 'active' ? '⚡ ' : '🛡 ') + esc(a.name) + '</div><div class="c-desc">' + esc(a.desc) + '</div></div>';
+            html += '<div class="card kind-' + (a.type || 'passive') + '" data-lib="' + a.id + '">' +
+                '<div class="c-title">' + (a.type === 'active' ? '⚡' : '🛡') + ' ' + esc(a.name) + '</div>' +
+                '<div class="c-desc">' + esc(a.desc) + '</div></div>';
         });
-        html += '</div><div class="muted" style="margin-top:6px;">Слоты активных: ' + v.abilities.active.length + '/4, пассивных: ' + v.abilities.passive.length + '/6.</div>' +
-            '<button class="btn-ghost" style="margin-top:8px" id="lib-leave">Пропустить (+25 золота)</button></div>';
+        html += '</div><button class="btn-ghost btn-wide" style="margin-top:12px" id="lib-leave">Пропустить (+25 💰)</button></div>';
         body.innerHTML = html;
         body.querySelectorAll('[data-lib]').forEach(el => el.onclick = () => { sfx('pick'); socket.emit('rlLibraryChoose', { abilityId: el.dataset.lib }); });
         $('lib-leave').onclick = () => { sfx('click'); socket.emit('rlLibraryLeave'); };
     }
 
+    // ================== ЗАМЕНА НАВЫКА (слоты заняты) ==================
+    function renderSwap(v, body) {
+        const sw = v.swap;
+        let html = '<div class="panel anim"><h2 class="sect">⚖ Слоты заняты</h2>' +
+            '<div class="muted">Навык <b style="color:var(--gold-hi)">' + esc(sw.newName) + '</b> хочет место (' +
+            (sw.type === 'active' ? 'активный' : 'пассивный') + '). Выбери, кого выкинуть:</div>' +
+            '<div class="card-grid" style="margin-top:10px;">';
+        (sw.candidates || []).forEach(c => {
+            html += '<div class="card kind-' + sw.type + '" data-swap="' + c.id + '">' +
+                '<div class="c-title">' + esc(c.name) + '</div><div class="c-desc">' + esc(c.desc) + '</div></div>';
+        });
+        html += '</div><button class="btn-ghost btn-wide" style="margin-top:12px" id="swap-cancel">Оставить как есть</button></div>';
+        body.innerHTML = html;
+        body.querySelectorAll('[data-swap]').forEach(el => el.onclick = () => { sfx('pick'); socket.emit('rlSwapConfirm', { oldId: el.dataset.swap }); });
+        $('swap-cancel').onclick = () => { sfx('click'); socket.emit('rlSwapCancel'); };
+    }
+
+    // ================== АЛТАРЬ ==================
     function renderAltar(v, body) {
-        let html = '<div class="panel"><h2>⚗️ Алтарь</h2><p>Обменяй что-то на силу.</p><div class="row" style="flex-direction:column;align-items:stretch;">';
-        html += '<button data-alt="blood" ' + (v.hp > 20 ? '' : 'disabled') + '>Отдать 15 репутации → реликвия</button>';
-        html += '<button data-alt="gold" ' + (v.gold >= 40 ? '' : 'disabled') + '>Отдать 40 золота → реликвия</button>';
-        html += '<button data-alt="sacrifice">Пожертвовать реликвию → +60 золота</button>';
-        html += '<button data-alt="curse">Взять проклятие → реликвия</button>';
-        html += '<button class="btn-ghost" data-alt="leave">Уйти</button>';
-        html += '</div></div>';
+        const lim = v.limits || { relics: 7 };
+        const relicsFull = v.relics.length >= lim.relics;
+        let html = '<div class="panel anim"><h2 class="sect">⚗️ Алтарь</h2>' +
+            '<p class="muted">Всё здесь — обмен. ' + (relicsFull ? 'Коллекция реликвий полна — получишь золото.' : '') + '</p>' +
+            '<div class="row" style="flex-direction:column;align-items:stretch;">' +
+            '<button data-alt="blood" ' + (v.hp > 20 ? '' : 'disabled') + '>Отдать 15 репутации → реликвия' + (relicsFull ? ' (или 50 💰)' : '') + '</button>' +
+            '<button class="btn-sec" data-alt="gold" ' + (v.gold >= 40 ? '' : 'disabled') + '>Сжечь 40 золота → реликвия' + (relicsFull ? ' (вернётся)' : '') + '</button>' +
+            '<button class="btn-sec" data-alt="sacrifice" ' + (v.relics.length > 1 ? '' : 'disabled') + '>Пожертвовать реликвию → +60 💰</button>' +
+            '<button class="btn-danger" data-alt="curse" ' + (v.curses.length < 6 ? '' : 'disabled') + '>Взять проклятие → реликвия</button>' +
+            '<button class="btn-ghost" data-alt="leave">Уйти</button>' +
+            '</div></div>';
         body.innerHTML = html;
         body.querySelectorAll('[data-alt]').forEach(el => el.onclick = () => { sfx('pick'); socket.emit('rlAltar', { action: el.dataset.alt }); });
     }
 
+    // ================== КАЗИНО ==================
     function renderCasino(v, body) {
-        let html = '<div class="panel"><h2>🎰 Казино</h2><div class="stat-line">Золото: <b>' + v.gold + '</b> 💰</div>';
+        let html = '<div class="panel anim"><h2 class="sect">🎰 Казино</h2>' +
+            '<div class="stat-line">В кошельке: <b>' + v.gold + '</b> 💰</div>';
         if (v.casino.lastResult) {
             html += v.casino.lastResult.win
-                ? '<div class="stat-line" style="color:#7bd88f;">Выигрыш! +' + v.casino.lastResult.amount + ' 💰</div>'
-                : '<div class="stat-line" style="color:#ff8a80;">Проигрыш −' + v.casino.lastResult.amount + ' 💰</div>';
+                ? '<div class="stat-line" style="color:#8ee0bd;">Выпало удачно: +' + v.casino.lastResult.amount + ' 💰</div>'
+                : '<div class="stat-line" style="color:#ff9d99;">Не повезло: −' + v.casino.lastResult.amount + ' 💰</div>';
         }
-        html += '<p>45% шанс удвоить ставку. Поставь сумму:</p>' +
-            '<input type="number" id="casino-amount" min="1" max="' + Math.max(1, v.gold) + '" placeholder="ставка">' +
-            '<div class="row" style="margin-top:8px;"><button class="grow" id="casino-bet">Играть</button><button class="btn-sec" id="casino-leave">Выйти</button></div></div>';
+        html += '<div class="divider"></div><p class="muted">45% шанс удвоить ставку. Всё остальное — убыток.</p>' +
+            '<input type="number" id="casino-amount" min="1" max="' + Math.max(1, v.gold) + '" placeholder="сумма">' +
+            '<div class="row" style="margin-top:10px;"><button class="grow" id="casino-bet">Бросить</button>' +
+            '<button class="btn-sec" id="casino-leave">Выйти</button></div></div>';
         body.innerHTML = html;
         $('casino-bet').onclick = () => { const a = parseInt($('casino-amount').value, 10) || 0; sfx('coin'); socket.emit('rlCasinoBet', { amount: a }); };
         $('casino-leave').onclick = () => { sfx('click'); socket.emit('rlCasinoLeave'); };
     }
 
+    // ================== ФИНАЛ ==================
     function renderEnd(v, body) {
         const r = v.result || {};
         const victory = v.screen === 'victory';
-        let html = '<div class="panel" style="text-align:center;">' +
-            '<h2>' + (victory ? '🏆 ПОБЕДА!' : '💀 Забег окончен') + '</h2>' +
-            '<div class="stat-line">Счёт: <b>' + (r.score || 0) + '</b></div>' +
-            '<div class="stat-line">Получено кристаллов: <b>+' + (r.crystals || 0) + '</b> 💎</div>' +
-            '<div class="stat-line">Глубина: <b>' + (r.depth || 0) + '</b> · Золото: <b>' + (r.gold || 0) + '</b> 💰</div>' +
-            '<div class="stat-line">Боёв выиграно: <b>' + (r.stats ? r.stats.battlesWon : 0) + '</b>, проиграно: <b>' + (r.stats ? r.stats.battlesLost : 0) + '</b></div>' +
-            '<div class="stat-line">Реликвий: <b>' + ((r.relics || []).length) + '</b>, проклятий: <b>' + ((r.curses || []).length) + '</b></div>' +
-            '<div class="stat-line muted">Семя: ' + (r.seed != null ? r.seed : '') + '</div>' +
-            '<div class="row" style="justify-content:center;margin-top:10px;"><button id="end-again">Новый забег</button><button class="btn-sec" id="end-menu">В меню</button></div>' +
+        const st = r.stats || {};
+        let html = '<div class="panel anim" style="text-align:center;">' +
+            '<div class="brand-mark">' + (victory ? 'колекция собрана' : 'карман пуст') + '</div>' +
+            '<h2 class="sect" style="justify-content:center;font-size:30px;">' + (victory ? '🏆 ПОБЕДА' : '💀 КОНЕЦ') + '</h2>' +
+            '<div class="records" style="margin-top:6px;">' +
+                '<div class="rec"><div class="rv">' + (r.score || 0) + '</div><div class="rl">счёт</div></div>' +
+                '<div class="rec"><div class="rv">+' + (r.crystals || 0) + '</div><div class="rl">кристаллов 💎</div></div>' +
+                '<div class="rec"><div class="rv">' + (r.depth || 0) + '</div><div class="rl">глубина</div></div>' +
+                '<div class="rec"><div class="rv">' + (st.battlesWon || 0) + '/' + ((st.battlesWon || 0) + (st.battlesLost || 0)) + '</div><div class="rl">боёв выиграно</div></div>' +
+                '<div class="rec"><div class="rv">' + ((r.relics || []).length) + '</div><div class="rl">реликвий</div></div>' +
+                '<div class="rec"><div class="rv">' + ((r.abilities ? (r.abilities.active.length + r.abilities.passive.length) : 0)) + '</div><div class="rl">навыков</div></div>' +
+            '</div>' +
+            '<div class="stat-line muted" style="margin-top:10px;">Золото ' + (r.gold || 0) + ' 💰 · проклятий ' + ((r.curses || []).length) +
+            ' · семя ' + (r.seed != null ? esc(String(r.seed)) : '') + '</div>' +
+            '<div class="row" style="justify-content:center;margin-top:14px;">' +
+            '<button id="end-again">Новый забег</button><button class="btn-sec" id="end-menu">В меню</button></div>' +
             '</div>';
         body.innerHTML = html;
         $('end-again').onclick = () => { hideRun(); showStart(); socket.emit('rlList'); };
@@ -613,10 +1081,9 @@
     }
 
     function hideRun() { $('run-screen').classList.add('hidden'); }
-    function showStart() { $('start-screen').classList.remove('hidden'); renderMeta(); }
+    function showStart() { $('start-screen').classList.remove('hidden'); renderMeta(); renderLaw(); }
 
     // ================== События сервера ==================
-    let lastContent = null;
     socket.on('connect', () => { socket.emit('rlList'); });
 
     socket.on('rlContent', (content) => {
@@ -629,7 +1096,6 @@
         sending = false;
         const v = data.view;
         if (v && (v.screen === 'gameover' || v.screen === 'victory')) { onRunEnd(v); }
-        // первый раз — перейти в забег
         if (v && v.screen !== 'start') {
             $('start-screen').classList.add('hidden');
             $('run-screen').classList.remove('hidden');
@@ -638,12 +1104,15 @@
     });
 
     socket.on('rlRoundResult', (r) => {
+        lastRound = r;
+        bidValue = 0;
         sfx(r.playerWins ? 'win' : 'lose');
     });
 
     socket.on('rlCombatEnd', (c) => {
+        lastRound = null;
         if (c.win) banner('Победа над ' + c.enemy.name + '! ' + c.playerPoints + ':' + c.enemyPoints, 'good', 3200);
-        else { sfx('hit'); banner('Поражение... −' + c.damage + ' репутации' + (c.revived ? ' (Феникс спас!)' : ''), 'bad', 3600); }
+        else { sfx('hit'); banner('Поражение… −' + c.damage + ' репутации' + (c.revived ? ' (восстание!)' : ''), 'bad', 3600); }
     });
 
     socket.on('rlError', (msg) => {
@@ -672,16 +1141,18 @@
         sfx(v.screen === 'victory' ? 'fanfare' : 'lose');
     }
 
-    // Сброс флага при старте нового забега + защита от двойных действий
+    // Защита от двойных кликов
     const ACTION_EVENTS = new Set(['rlEnterNode', 'rlSubmitBid', 'rlActivate', 'rlUsePotion', 'rlChooseReward',
         'rlLibraryChoose', 'rlLibraryLeave', 'rlForgeChoose', 'rlForgeLeave', 'rlRest', 'rlEventChoice',
-        'rlEventContinue', 'rlShopBuy', 'rlShopLeave', 'rlTreasureTake', 'rlAltar', 'rlCasinoBet', 'rlCasinoLeave']);
+        'rlEventContinue', 'rlShopBuy', 'rlShopLeave', 'rlTreasureTake', 'rlAltar', 'rlCasinoBet', 'rlCasinoLeave',
+        'rlSwapConfirm', 'rlSwapCancel']);
     let sending = false;
     const origEmit = socket.emit.bind(socket);
     socket.emit = function (ev, ...args) {
-        if (ev === 'rlStart') endHandled = false;
+        if (ev === 'rlStart') { endHandled = false; lastRound = null; bidValue = 0; }
+        if (ev === 'rlEnterNode') { bidValue = 0; lastRound = null; }
         if (ACTION_EVENTS.has(ev)) {
-            if (sending) return socket; // игнорируем повторный клик, пока ждём ответ
+            if (sending) return socket;
             sending = true;
             setTimeout(() => { sending = false; }, 6000);
         }
